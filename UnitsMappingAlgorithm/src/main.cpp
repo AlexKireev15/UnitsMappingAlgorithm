@@ -8,32 +8,7 @@
 
 #include "Algorithm/PlaceAlgorithm.h"
 
-enum ElementType
-{
-	Block_High,
-	Block_Low,
-	Other,
-};
-
-struct Element
-{
-	Element(const ElementType& type, const sf::Vector2f& position, const std::shared_ptr<sf::Shape>& pShape) :
-		m_type(type), m_position(position), m_pShape(pShape) 
-	{
-		m_pShape->setPosition(position);
-	}
-	Element(const ElementType& type, const sf::Vector2f& position, const float& radius, const sf::Color& color) :
-		m_type(type), m_position(position)
-	{ 
-		m_pShape = std::make_shared<sf::CircleShape>(radius);
-		m_pShape->setFillColor(color);
-		m_pShape->setPosition(position);
-	}
-
-	ElementType m_type;
-	sf::Vector2f m_position;
-	std::shared_ptr<sf::Shape> m_pShape;
-};
+using namespace PlaceAlgorithm;
 
 int main(int argc, char ** argv)
 {
@@ -42,8 +17,7 @@ int main(int argc, char ** argv)
 
 	float mouseRadius = 25.f;
 	float mouseDirRadius = mouseRadius / 2.f;
-	float angle = (float) M_PI_2;
-	sf::Vector2f dir = { cos(angle), sin(angle) };
+	sf::Vector2f dir = { 0.f, 1.f };
 	sf::CircleShape mouse(mouseRadius);
 	sf::CircleShape mouseDir(mouseDirRadius);
 
@@ -54,13 +28,22 @@ int main(int argc, char ** argv)
 	sf::Vector2f pos1 = { window.getSize().x / 2.f - 2*blockRadius - mouseRadius / 2.f, window.getSize().y / 2.f - blockRadius };
 	sf::Vector2f pos2 = { window.getSize().x / 2.f + mouseRadius / 2.f, window.getSize().y / 2.f - blockRadius };
 	
-	std::list<Element> elements;
-	elements.push_back(Element(ElementType::Block_High, pos1, blockRadius, sf::Color::Green));
-	elements.push_back(Element(ElementType::Block_Low, pos2, blockRadius, sf::Color::Blue));
+	std::vector<CircleBlock> elements;
+	elements.push_back(CircleBlock(ElementType::Block_High, pos1, blockRadius, sf::Color::Green));
+	elements.push_back(CircleBlock(ElementType::Block_Low, pos2, blockRadius, sf::Color::Blue));
 
-	PlaceAlgorithm::Placer placer;
+	sf::Vector2f bounds = { 25.f, 25.f };
+	PlaceAlgorithm::Placer placer(elements);
 	
+	std::vector<sf::RectangleShape> shapes;
+	for (int i = 0; i < 10; ++i)
+	{
+		sf::RectangleShape rect(bounds);
+		rect.setFillColor(sf::Color::White);
+		shapes.push_back(rect);
+	}
 
+	std::vector<sf::Transform> transforms(shapes.size(), sf::Transform::Identity);
 
 	while (window.isOpen())
 	{
@@ -75,8 +58,8 @@ int main(int argc, char ** argv)
 			{
 				float sign = event.mouseWheelScroll.delta >= 0.f ? 1.f : -1.f;
 				{
-					angle += sign * 5.f * (float) M_PI / 180.f;
-					dir = { cos(angle), sin(angle) };
+					float rotAngle = sign * 5.f * (float)M_PI / 180.f;
+					dir = { dir.x * cos(rotAngle) - dir.y * sin(rotAngle), dir.x * sin(rotAngle) + dir.y * cos(rotAngle) };
 				}
 			}
 		}
@@ -85,7 +68,7 @@ int main(int argc, char ** argv)
 		mouse.setPosition(pos.x - mouseRadius, pos.y - mouseRadius);
 		mouseDir.setPosition(pos.x - mouseDirRadius - mouseDirRadius * dir.x, pos.y - mouseDirRadius - mouseDirRadius * dir.y);
 
-		auto placed = placer.Place("", 10, { mouse.getPosition().x + mouse.getRadius() , mouse.getPosition().y + mouse.getRadius() }, M_PI_2 + angle, { 25, 25 }, { 5, 5 });
+		transforms = placer.Place("", shapes.size(), sf::Vector2f((float)pos.x, (float)pos.y), dir, bounds, { 5.f, 5.f });
 
 		window.clear();
 		for (auto element : elements)
@@ -95,9 +78,9 @@ int main(int argc, char ** argv)
 
 		window.draw(mouse);
 		window.draw(mouseDir);
-		for (auto p : placed)
+		for (size_t idx = 0; idx < shapes.size(); ++idx)
 		{
-			window.draw(p);
+			window.draw(shapes[idx], transforms[idx]);
 		}
 
 		window.display();
