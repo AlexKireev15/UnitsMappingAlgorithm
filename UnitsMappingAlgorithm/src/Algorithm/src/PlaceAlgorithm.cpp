@@ -1,50 +1,73 @@
-#define _USE_MATH_DEFINES
+#include "..\PlaceAlgorithm.h"
+#define M_PI 3.14159265358979323846f
 #include <cmath>
 
-#include "..\PlaceAlgorithm.h"
-
+#include "../Units.h"
+#include "../Utils.h"
 
 using namespace PlaceAlgorithm;
-using namespace sf;
 
-std::vector<Vector2f> Placer::LineUp(size_t count, Vector2f boundary, Vector2f padding) const
+bool IsInside(const FloatRect& a, const FloatRect& b)
 {
-	std::vector<Vector2f> result;
-	result.reserve(count);
-
-	float spacing = padding.x;
-	float totalSpace = boundary.x * count + (count > 0 ? (spacing * (count - 1)) : 0);
-	for (size_t idx = 0; idx < count; ++idx)
-	{
-		result.push_back({ (boundary.x + spacing) * idx - totalSpace / 2.f, -boundary.y / 2 });
-	}
-
-	return result;
+	return a.contains(b.left, b.top) &&
+		a.contains(b.left + b.width, b.top) &&
+		a.contains(b.left, b.top + b.height) &&
+		a.contains(b.left + b.width, b.top + b.height);
 }
 
-sf::Transform PlaceAlgorithm::Placer::CorrectTransformsByBlocks(sf::Transform & transform, sf::Vector2f boundary) const
+Vector2f GetCenter(const FloatRect& rect)
 {
-	for (auto block : m_elements)
-	{
-		if (block.m_type == ElementType::Block_High || block.m_type == ElementType::Block_Low)
-		{
-			sf::Vector2f center = transform.transformPoint(boundary / 2.f);
-			//sf::Transform t = sf::Transform::Identity;
+	return Vector2f(rect.left + rect.width / 2.f, rect.top + rect.height / 2.f);
+}
 
-			sf::Vector2f correctionVector;
-			if (block.IsIntersectedWithRect(center, boundary, correctionVector))
-				transform.translate(correctionVector);
+bool GetIntersection(Vector2f a1, Vector2f a2, Vector2f b1, Vector2f b2, Vector2f& intersection)
+{
+	float A1 = a2.y - a1.y;
+	float B1 = a1.x - a2.x;
+	float C1 = a2.x * a1.y - a1.x * a2.y;
+
+	float A2 = b2.y - b1.y;
+	float B2 = b1.x - b2.x;
+	float C2 = b2.x * b1.y - b1.x * b2.y;
+
+	float det = A1 * B2 - A2 * B1;
+	if (abs(det) <= 0.e-10f)
+		return false;
+
+	intersection.x = -(C1 * B2 - C2 * B1) / (A1* B2 - A2 * B1);
+	intersection.y = -(A1 * C2 - A2 * C1) / (A1 * B2 - A2 * B1);
+
+	Vector2f v1 = (intersection - b1);
+	Vector2f v2 = (intersection - b2);
+
+	float dot = v1.x * v2.x + v1.y * v2.y;
+
+	return dot < 0.f;
+}
+
+Vector2f GetIntersection(Vector2f a, Vector2f b, FloatRect rect)
+{
+	Vector2f intersection;
+	Vector2f corners[4] =
+	{
+		Vector2f(rect.left, rect.top),
+		Vector2f(rect.left, rect.top + rect.height),
+		Vector2f(rect.left + rect.width, rect.top),
+		Vector2f(rect.left + rect.width, rect.top + rect.height),
+	};
+
+	for (size_t idx = 0; idx < 4; ++idx)
+	{
+		if (GetIntersection(a, b, corners[idx], corners[(idx + 1) % 4], intersection))
+		{
+			return intersection;
 		}
 	}
-	return transform;
+
+	return intersection;
 }
 
-float GetAbs(sf::Vector2f v)
-{
-	return sqrt(v.x * v.x + v.y * v.y);
-}
-
-float GetAngleBetween(sf::Vector2f a, sf::Vector2f b)
+float GetAngleBetween(const Vector2f& a, const Vector2f& b)
 {
 	float dot = a.x * b.x + a.y * b.y;
 
@@ -52,34 +75,83 @@ float GetAngleBetween(sf::Vector2f a, sf::Vector2f b)
 	return acos(sign * dot / (GetAbs(a) * GetAbs(b))) * 180.f / (float)M_PI;
 }
 
-
-
-std::vector<sf::Transform> Placer::Place(const std::string & lineUpName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding)
+std::list<Vector2f> PlaceAlgorithm::Placer::GetLineLineup(size_t count, Vector2f boundary, Vector2f padding) const
 {
-	/*
-		TODO: Make several lineups 
-	*/
+	std::list<Vector2f> result;
+	//result.reserve(count);
 
-	Vector2f initialDirection = { 0.f, 1.f };
-	
-	float angle = GetAngleBetween(initialDirection, direction);
-	
-	sf::Transform globalTransform = sf::Transform::Identity;
-	globalTransform
-		.rotate(angle, position)
-		.translate(position.x, position.y);
-
-	std::vector<sf::Transform> transforms;
-	transforms.reserve(count);
-
-	auto initialLineup = LineUp(count, boundary, padding);
-	for (auto translation : initialLineup)
+	float spacing = padding.x;
+	float totalSpace = boundary.x * count + (count > 0 ? (spacing * (count - 1)) : 0);
+	for (size_t idx = 0; idx < count; ++idx)
 	{
-		sf::Transform t(globalTransform);
-		t.translate(translation);
-		t = CorrectTransformsByBlocks(t, boundary);
-		transforms.push_back(t);
+		result.push_back({ boundary.x / 2.f + (boundary.x + spacing) * idx - totalSpace / 2.f, 0.f });
 	}
 
-	return transforms;
+	return result;
+}
+
+UnitGroup PlaceAlgorithm::Placer::Place(const std::string & lineupName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding)
+{
+	std::list<Vector2f> lineupTranslations = GetLineLineup(count, boundary, padding);
+
+	Vector2f Oy = { 0.f, 1.f };
+	float angle = GetAngleBetween(direction, Oy);
+
+	std::list<UnitPtr> units;
+	for (auto lineupTranslation : lineupTranslations)
+	{
+		auto unit = CreateUnit(CreateRect(boundary, Color::White, position + lineupTranslation), padding, lineupTranslation, *this);
+		units.push_back(unit);
+		m_blocks.push_back(unit);
+	}
+	UnitGroup group(position, units);
+	group.Rotate(angle);
+
+	return group;
+}
+
+bool PlaceAlgorithm::Placer::CanMoveHere(Unit & unit, Vector2f position) const
+{
+	bool isIntersected = false;
+	Vector2f correctionVectorsSum;
+	for (auto& pBlock : m_blocks)
+	{
+		Vector2f correctionVector;
+		if (pBlock->IsIntersectedWithRect(position, unit.GetBBox(), unit.GetRotation(), correctionVector))
+		{
+			isIntersected = true;
+			correctionVectorsSum += correctionVector;
+		}
+	}
+
+	if (isIntersected)
+	{
+		for (auto& pBlock : m_blocks)
+		{
+			Vector2f correctionVector;
+			if (pBlock->IsIntersectedWithRect(position + correctionVectorsSum, unit.GetBBox(), unit.GetRotation(), correctionVector))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void PlaceAlgorithm::Placer::Update(UnitGroup& group) const
+{
+	for (auto& pUnit : group.GetUnits())
+	{
+		Vector2f correctionVectorsSum;
+		for (auto& pBlock : m_blocks)
+		{
+			Vector2f correctionVector;
+			if (pBlock->IsIntersectedWithRect(pUnit->GetPosition(), pUnit->GetBBox(), pUnit->GetRotation(), correctionVector))
+			{
+				correctionVectorsSum += correctionVector;
+			}
+		}
+		pUnit->Move(correctionVectorsSum);
+	}
 }

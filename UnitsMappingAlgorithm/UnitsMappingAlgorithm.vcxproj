@@ -154,11 +154,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Algorithm\src\Blocks.cpp" />
     <ClCompile Include="src\Algorithm\src\PlaceAlgorithm.cpp" />
+    <ClCompile Include="src\Algorithm\src\Units.cpp" />
+    <ClCompile Include="src\Algorithm\src\Utils.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Algorithm\Blocks.h" />
     <ClInclude Include="src\Algorithm\PlaceAlgorithm.h" />
+    <ClInclude Include="src\Algorithm\Units.h" />
+    <ClInclude Include="src\Algorithm\Utils.h" />
+    <ClInclude Include="src\Common.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -24,9 +24,30 @@
     <ClCompile Include="src\Algorithm\src\PlaceAlgorithm.cpp">
       <Filter>src\Algorithm\src</Filter>
     </ClCompile>
+    <ClCompile Include="src\Algorithm\src\Blocks.cpp">
+      <Filter>src\Algorithm\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Algorithm\src\Units.cpp">
+      <Filter>src\Algorithm\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Algorithm\src\Utils.cpp">
+      <Filter>src\Algorithm\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Algorithm\PlaceAlgorithm.h">
+      <Filter>src\Algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Common.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Algorithm\Blocks.h">
+      <Filter>src\Algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Algorithm\Units.h">
+      <Filter>src\Algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Algorithm\Utils.h">
       <Filter>src\Algorithm</Filter>
     </ClInclude>
   </ItemGroup>
