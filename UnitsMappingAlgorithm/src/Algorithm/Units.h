@@ -20,12 +20,14 @@ namespace PlaceAlgorithm
 		void UpdateLineupPosition(const Vector2f& groupPosition);
 
 		Vector2f GetPosition() const;
+		float GetRadius() const;
 		float GetRotation() const;
 		RectPtr GetDrawable() const;
 		Vector2f GetBBox() const;
 		Vector2f GetLineupPosition() const;
 
 		bool IsIntersectedWithRect(const sf::Vector2f& position, const sf::Vector2f& size, float rotationAngle, sf::Vector2f& correctionVector) override;
+		bool IsIntersectedWith(const sf::Vector2f& position, float radius) override;
 
 	private:
 		RectPtr m_pRect;
@@ -48,6 +50,10 @@ namespace PlaceAlgorithm
 					pUnit->RotateNoSelfAxis(m_rotation, position);
 			}
 			m_position = position;
+		}
+		Vector2f GetPosition() const
+		{
+			return m_position;
 		}
 
 		void Rotate(float angle)

@@ -1,5 +1,6 @@
 #include "../Blocks.h"
 #include "../Utils.h"
+#include "../Units.h"
 
 using namespace PlaceAlgorithm;
 
@@ -58,4 +59,12 @@ bool PlaceAlgorithm::CircleBlock::IsIntersectedWithRect(const Vector2f & positio
 		return true;
 	}
 	return false;*/
+}
+
+bool PlaceAlgorithm::CircleBlock::IsIntersectedWith(const sf::Vector2f& position, float radius)
+{
+	auto distVect = m_pCircle->getPosition() - position;
+	float dist = GetAbs(distVect);
+
+	return dist < m_pCircle->getRadius() + radius;
 }

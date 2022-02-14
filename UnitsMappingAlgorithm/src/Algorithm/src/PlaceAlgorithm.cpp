@@ -1,5 +1,4 @@
 #include "..\PlaceAlgorithm.h"
-#define M_PI 3.14159265358979323846f
 #include <cmath>
 
 #include "../Units.h"
@@ -67,14 +66,6 @@ Vector2f GetIntersection(Vector2f a, Vector2f b, FloatRect rect)
 	return intersection;
 }
 
-float GetAngleBetween(const Vector2f& a, const Vector2f& b)
-{
-	float dot = a.x * b.x + a.y * b.y;
-
-	float sign = (a.x * b.y - b.x * a.y) > 0 ? 1.f : -1.f;
-	return acos(sign * dot / (GetAbs(a) * GetAbs(b))) * 180.f / (float)M_PI;
-}
-
 std::list<Vector2f> PlaceAlgorithm::Placer::GetLineLineup(size_t count, Vector2f boundary, Vector2f padding) const
 {
 	std::list<Vector2f> result;
@@ -108,6 +99,87 @@ UnitGroup PlaceAlgorithm::Placer::Place(const std::string & lineupName, size_t c
 	group.Rotate(angle);
 
 	return group;
+}
+
+bool PlaceAlgorithm::Placer::IsFree(const Vector2f & position, const UnitPtr& pUnit) const
+{
+	for (auto blockPtr : m_blocks)
+	{
+		if (blockPtr.get() == pUnit.get() || !blockPtr)
+			continue;
+
+		if (blockPtr->IsIntersectedWith(position, pUnit->GetRadius()))
+			return false;
+	}
+	return true;
+}
+
+void PlaceAlgorithm::Placer::Replace(UnitGroup & unitGroup)
+{
+	auto unitsList = unitGroup.GetUnits();
+	auto groupPosition = unitGroup.GetPosition();
+	auto IsReplaceNeeded = [this](UnitPtr pUnit)
+	{
+		for (auto pBlock : m_blocks)
+		{
+			if (pBlock.get() == pUnit.get())
+				continue;
+			if (pBlock->IsIntersectedWith(pUnit->GetPosition(), pUnit->GetRadius()))
+				return true;
+		}
+		return false;
+	};
+	auto GetPossiblePositions = [this](UnitPtr pUnit, const sf::Vector2f& startPosition, float radius)
+	{
+		std::vector<sf::Vector2f> result;
+		for (float rotationAngle = 0.f; rotationAngle <= 360.f; rotationAngle += 5.f)
+		{
+			Transform t;
+			t.translate({ 0.f, rotationAngle >= 180.f ? -radius : radius });
+			t.rotate(rotationAngle, startPosition);
+			sf::Vector2f resultPosition = t.transformPoint(startPosition);
+			if (IsFree(resultPosition, pUnit))
+				result.push_back(resultPosition);
+		}
+
+		return result;
+	};
+
+	for (auto unitPtr : unitsList)
+	{
+		if (!IsReplaceNeeded(unitPtr))
+		{
+			continue;
+		}
+
+		auto startPosition = groupPosition + unitPtr->GetLineupPosition();
+		std::vector<sf::Vector2f> possiblePositions;
+		float offset = unitPtr->GetRadius() * 0.5f;
+		while (possiblePositions.empty())
+		{
+			possiblePositions = GetPossiblePositions(unitPtr, startPosition, offset);
+			offset += unitPtr->GetRadius();
+		}
+
+		sf::Vector2f minimalDistPosition = possiblePositions.front();
+		float minimalDist = GetAbs(startPosition - possiblePositions.front());
+		for (auto pos : possiblePositions)
+		{
+			float dist = GetAbs(startPosition - pos);
+			if (dist < minimalDist)
+			{
+				minimalDist = dist;
+				minimalDistPosition = pos;
+			}
+		}
+
+		unitPtr->SetPosition(minimalDistPosition);
+		//unitPtr->SetPosition(unitPtr->GetPosition() + sf::Vector2f(20.f, 20.f));
+		/*if (IsFree(startPosition))
+		{
+			continue;
+		}*/
+	}
 }
 
 bool PlaceAlgorithm::Placer::CanMoveHere(Unit & unit, Vector2f position) const

@@ -5,13 +5,20 @@ using namespace sf;
 
 Vector2f PlaceAlgorithm::Unit::GetPosition() const { return m_pRect->getPosition(); }
 
+float PlaceAlgorithm::Unit::GetRadius() const
+{
+	float x = m_pRect->getSize().x + m_padding.x;
+	float y = m_pRect->getSize().y + m_padding.y;
+	return sqrt(x * x + y * y) / 2.f;
+}
+
 bool PlaceAlgorithm::Unit::SetPosition(const Vector2f & position)
 {
-	if (m_placer.CanMoveHere(*this, position))
-	{
+	/*if (m_placer.CanMoveHere(*this, position))
+	{*/
 		m_pRect->setPosition(position);
 		return true;
-	}
+	//}
 	return false;
 }
 
@@ -80,4 +87,16 @@ bool PlaceAlgorithm::Unit::IsIntersectedWithRect(const Vector2f & position, cons
 	}
 
 	return false;
+}
+
+bool PlaceAlgorithm::Unit::IsIntersectedWith(const sf::Vector2f& position, float radius)
+{
+	auto distVect = GetPosition() - position;
+	float dist = GetAbs(distVect);
+
+	float x = m_pRect->getSize().x;
+	float y = m_pRect->getSize().y;
+	float rectRadius = x/2.f;
+
+	return dist < x;
 }

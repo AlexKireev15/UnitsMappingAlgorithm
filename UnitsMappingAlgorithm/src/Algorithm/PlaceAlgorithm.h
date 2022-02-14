@@ -14,7 +14,9 @@ namespace PlaceAlgorithm
 		Placer(const std::list<BlockPtr> blocks) : m_blocks(blocks) { }
 		std::list<Vector2f> GetLineLineup( size_t count, Vector2f boundary, Vector2f padding) const;
 		UnitGroup Place(const std::string & lineUpName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding);
+		void Replace(UnitGroup& unitGroup);
 		bool CanMoveHere(Unit& unit, Vector2f position) const;
+		bool IsFree(const Vector2f& position, const UnitPtr & pUnit) const;
 
 		void Update(UnitGroup & group) const;
 

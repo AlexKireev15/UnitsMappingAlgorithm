@@ -13,6 +13,7 @@ namespace PlaceAlgorithm
 		ElementType GetType() const { return m_type; }
 
 		virtual bool IsIntersectedWithRect(const sf::Vector2f& position, const sf::Vector2f& size, float rotationAngle, sf::Vector2f& correctionVector) = 0;
+		virtual bool IsIntersectedWith(const sf::Vector2f& position, float radius) = 0;
 
 	protected:
 		ElementType m_type;
@@ -35,6 +36,7 @@ namespace PlaceAlgorithm
 			return 0.f;
 		}
 		bool IsIntersectedWithRect(const sf::Vector2f& position, const sf::Vector2f& size, float rotationAngle, sf::Vector2f& correctionVector) override;
+		bool IsIntersectedWith(const sf::Vector2f& position, float radius) override;
 
 	private:
 		CirclePtr m_pCircle;
