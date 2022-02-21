@@ -1,19 +1,31 @@
-#include <SFML/Graphics.hpp>
-#include <list>
+#include "Common.h"
 
+#include <list>
+#include <array>
 #include <iostream>
 
-#include "Algorithm/PlaceAlgorithm.h"
-#include "Algorithm/Blocks.h"
-#include "Algorithm/Units.h"
+#include "Algorithm/Placer.h"
+#include "Algorithm/Block.h"
 
-#include "Algorithm/Utils.h"
+std::list<UnitDrawablePtr> CreateUnitDrawables(size_t count)
+{
+	sf::Vector2f unitSize = {20.f, 20.f};
 
-using namespace PlaceAlgorithm;
+	std::list<UnitDrawablePtr> unitsDrawables;
+	for (size_t idx = 0; idx < count; ++idx)
+	{
+		auto bodyRect = CreateRect(unitSize, sf::Color::White);
+		auto gunRect = CreateRect({ unitSize.x / 4.f, unitSize.y }, { unitSize.x / 8.f, unitSize.y - unitSize.x / 8.f }, sf::Color::Red);
+		auto unitDrawable = CreateUnitDrawable(bodyRect, gunRect);
+		unitsDrawables.push_back(unitDrawable);
+	}
+
+	return unitsDrawables;
+}
 
 int main(int argc, char ** argv)
 {
-	sf::RenderWindow window(sf::VideoMode(1024u, 768u), "Units mapping");
+	sf::RenderWindow window(sf::VideoMode(900u, 600u), "Units mapping");
 	window.setVerticalSyncEnabled(true);
 
 	std::list<DrawablePtr> drawables;
@@ -21,24 +33,35 @@ int main(int argc, char ** argv)
 	float mouseRadius = 25.f;
 	float mouseDirRadius = mouseRadius / 2.f;
 	float blockRadius = 100.f;
+	sf::Vector2f blockSize = { blockRadius, blockRadius };
 	sf::Vector2f dir = { 0.f, -1.f };
-	CirclePtr mouse = CreateCircle(mouseRadius, sf::Color::Red);
-	CirclePtr mouseDir = CreateCircle(mouseDirRadius, sf::Color::Green);
-	CirclePtr blockCircleLeft = CreateCircle(blockRadius, sf::Color::Green, { (float)window.getSize().x / 2.f - blockRadius, (float)window.getSize().y / 2.f });
+
+	//CirclePtr mouse = CreateCircle(mouseRadius, sf::Color::Red);
+	//CirclePtr mouseDir = CreateCircle(mouseDirRadius, sf::Color::Green);
+	RectPtr blockRectLeft = CreateRect(blockSize, sf::Color::Yellow, { (float)window.getSize().x / 2.f - blockSize.x, (float)window.getSize().y / 2.f });
 	CirclePtr blockCircleRight = CreateCircle(blockRadius, sf::Color::Blue, { (float)window.getSize().x / 2.f + blockRadius, (float)window.getSize().y / 2.f });
-	BlockPtr blockLeftPtr = CreateCircleBlock(ElementType::BLOCK_HIGH, blockCircleLeft);
-	BlockPtr blockRightPtr = CreateCircleBlock(ElementType::BLOCK_LOW, blockCircleRight);
+	
+	std::list<UnitDrawablePtr> unitsDrawables = CreateUnitDrawables(9u);
 
-
-	PlaceAlgorithm::Placer placer(std::list<BlockPtr>{ blockLeftPtr, blockRightPtr });
-	UnitGroup group = placer.Place("", 10, { 0.f,0.f }, dir, { 25.f, 25.f }, { 5.f, 5.f });
-	auto groupDrawables = group.GetDrawables();
-
-	drawables.push_back(blockCircleLeft);
+	drawables.push_back(blockRectLeft);
 	drawables.push_back(blockCircleRight);
-	drawables.push_back(mouse);
-	drawables.push_back(mouseDir);
-	drawables.insert(drawables.end(), groupDrawables.begin(), groupDrawables.end());
+	//drawables.push_back(mouse);
+	//drawables.push_back(mouseDir);
+	drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+
+	RectBlockPtr pLeftBlock = CreateRectBlock(ElementType::BLOCK_HIGH, blockRectLeft);
+	CircleBlockPtr pRightBlock = CreateCircleBlock(ElementType::BLOCK_LOW, blockCircleRight);
+
+	Placer placer(window.getSize().x, window.getSize().y, std::list<BlockPtr>{pLeftBlock, pRightBlock}, unitsDrawables);
+
+	std::array<std::string, 3> lineupNames = 
+	{
+		"line",
+		"wedge",
+		"square"
+	};
+	size_t currentLineupIdx = 0;
+	std::string currentLineup = lineupNames[currentLineupIdx];
 
 	sf::Vector2f mousePosition;
 	
@@ -59,28 +82,39 @@ int main(int argc, char ** argv)
 					float rotAngle = sign * 5.f;
 					float rotAngleRad =  rotAngle * (float)M_PI / 180.f;
 					dir = { dir.x * cos(rotAngleRad) - dir.y * sin(rotAngleRad), dir.x * sin(rotAngleRad) + dir.y * cos(rotAngleRad) };
-					mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
-					group.Rotate(rotAngle);
-					placer.Replace(group);
+					//mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
+
+					placer.PlaceUnits(currentLineup, 9, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 				}
 			}
 
 			if (event.type == sf::Event::MouseMoved)
 			{
 				mousePosition = { (float)event.mouseMove.x, (float)event.mouseMove.y };
-				mouse->setPosition(mousePosition);
-				mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
-				group.SetPosition(mousePosition);
-				placer.Replace(group);
+				//mouse->setPosition(mousePosition);
+				//mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
+
+				placer.PlaceUnits(currentLineup, 9, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 			}
 
 			if (event.type == sf::Event::MouseButtonPressed)
 			{
 			}
+
+			if (event.type == sf::Event::KeyPressed)
+			{
+				if (event.key.control)
+				{
+					currentLineupIdx = (currentLineupIdx + 1) % lineupNames.size();
+					currentLineup = lineupNames[currentLineupIdx];
+
+					placer.PlaceUnits(currentLineup, 9, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+				}
+			}
 		}
 
 		window.clear();
-				
+		
 		for (auto& drawable : drawables)
 			window.draw(*drawable);
 
