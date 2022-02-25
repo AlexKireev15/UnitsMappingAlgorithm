@@ -166,9 +166,9 @@ std::list<sf::Vector2f> Placer::GetWedgeLineup(size_t count, sf::Vector2f bounda
 std::list<sf::Vector2f> Placer::GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const
 {
 	std::list<Vector2f> result;
-
-	size_t sizeX = sqrt(count);
-	size_t sizeY = sqrt(count);
+	
+	size_t sizeX = std::ceil(sqrt(count));
+	size_t sizeY = std::floor(sqrt(count));
 	float spacing = padding.x;
 	float totalSpace = boundary.x * sizeX + (sizeX > 0 ? (spacing * (sizeX - 1)) : 0);
 
@@ -218,7 +218,7 @@ ElementType Placer::GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) cons
 				continue;
 			if (xdx >= m_map[ydx].size())
 				break;
-			if (m_map[ydx][xdx] == ElementType::FREE || m_map[ydx][xdx] == ElementType::UNIT)
+			if (m_map[ydx][xdx] == ElementType::FREE /*|| m_map[ydx][xdx] == ElementType::UNIT*/)
 				continue;
 
 			std::array<sf::Vector2f, 4u> field =
@@ -353,10 +353,42 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 			pUnitDrawable->SetPosition(unitPosition);
 		}
 		points = GetPoints(pUnitDrawable->body);
+		sf::Transform scaleT;
+		scaleT.scale({ 0.75f, 0.75f }, pUnitDrawable->body->getPosition());
+		for (auto& p : points)
+		{
+			p = scaleT.transformPoint(p);
+		}
 		SetUnitMapPosition(points);
 
 		FixGunPosition(pUnitDrawable);
 
 		++unitDrawableIt;
+	}
+}
+
+void Placer::ConsoleMap() const
+{
+	for (auto y : m_map)
+	{
+		for (auto x : y)
+		{
+			std::cout << (x == ElementType::FREE ? " " : "1") << " ";
+		}
+		std::cout << std::endl;
+	}
+}
+
+void Placer::AddBlock(BlockPtr pBlock)
+{
+	//m_blocks.push_back(pBlock);
+	for (size_t yIdx = 0; yIdx < m_map.size(); ++yIdx)
+	{
+		for (size_t xIdx = 0; xIdx < m_map[yIdx].size(); ++xIdx)
+		{
+			FloatRect cellCoords({ m_cellSize.x * xIdx, m_cellSize.y * yIdx }, m_cellSize);
+			if (IsIntersects(cellCoords, pBlock))
+				m_map[yIdx][xIdx] = pBlock->GetType();
+		}
 	}
 }

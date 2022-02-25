@@ -23,16 +23,55 @@ std::list<UnitDrawablePtr> CreateUnitDrawables(size_t count)
 	return unitsDrawables;
 }
 
+size_t CountFps(float lastTime, sf::Clock& clock)
+{
+	float currentTime = clock.restart().asSeconds();
+	float fps = 1.f / (currentTime - lastTime);
+	lastTime = currentTime;
+	return fps;
+}
+
+
+sf::Font font;
+
+std::shared_ptr<sf::Text> CreateText(const std::string& str)
+{
+	std::shared_ptr<sf::Text> text = std::make_shared<sf::Text>();
+
+	if (!font.loadFromFile("arial.ttf"))
+	{
+	}
+	// select the font
+	text->setFont(font); // font is a sf::Font
+
+	// set the string to display
+	text->setString(str);
+
+	// set the character size
+	text->setCharacterSize(24); // in pixels, not points!
+
+	// set the color
+	text->setFillColor(sf::Color::Red);
+
+	// set the text style
+	text->setStyle(sf::Text::Bold);
+
+	return text;
+}
+
 int main(int argc, char ** argv)
 {
 	sf::RenderWindow window(sf::VideoMode(900u, 600u), "Units mapping");
-	window.setVerticalSyncEnabled(true);
+	//window.setVerticalSyncEnabled(true);
+	const size_t unitCount = 11u;
+	auto fpsCounter = CreateText("0");
 
 	std::list<DrawablePtr> drawables;
 
 	float mouseRadius = 25.f;
 	float mouseDirRadius = mouseRadius / 2.f;
 	float blockRadius = 100.f;
+	float dynamicBlockRadius = 25.f;
 	sf::Vector2f blockSize = { blockRadius, blockRadius };
 	sf::Vector2f dir = { 0.f, -1.f };
 
@@ -41,13 +80,15 @@ int main(int argc, char ** argv)
 	RectPtr blockRectLeft = CreateRect(blockSize, sf::Color::Yellow, { (float)window.getSize().x / 2.f - blockSize.x, (float)window.getSize().y / 2.f });
 	CirclePtr blockCircleRight = CreateCircle(blockRadius, sf::Color::Blue, { (float)window.getSize().x / 2.f + blockRadius, (float)window.getSize().y / 2.f });
 	
-	std::list<UnitDrawablePtr> unitsDrawables = CreateUnitDrawables(9u);
+	std::list<UnitDrawablePtr> unitsDrawables = CreateUnitDrawables(unitCount);
 
 	drawables.push_back(blockRectLeft);
 	drawables.push_back(blockCircleRight);
 	//drawables.push_back(mouse);
 	//drawables.push_back(mouseDir);
 	drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+
+	drawables.push_back(fpsCounter);
 
 	RectBlockPtr pLeftBlock = CreateRectBlock(ElementType::BLOCK_HIGH, blockRectLeft);
 	CircleBlockPtr pRightBlock = CreateCircleBlock(ElementType::BLOCK_LOW, blockCircleRight);
@@ -64,9 +105,13 @@ int main(int argc, char ** argv)
 	std::string currentLineup = lineupNames[currentLineupIdx];
 
 	sf::Vector2f mousePosition;
+
+	sf::Clock clock;
+	float lastTime = 0;
 	
 	while (window.isOpen())
 	{
+
 		sf::Event event;
 		while (window.pollEvent(event))
 		{
@@ -84,7 +129,7 @@ int main(int argc, char ** argv)
 					dir = { dir.x * cos(rotAngleRad) - dir.y * sin(rotAngleRad), dir.x * sin(rotAngleRad) + dir.y * cos(rotAngleRad) };
 					//mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
 
-					placer.PlaceUnits(currentLineup, 9, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 				}
 			}
 
@@ -94,7 +139,7 @@ int main(int argc, char ** argv)
 				//mouse->setPosition(mousePosition);
 				//mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
 
-				placer.PlaceUnits(currentLineup, 9, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+				placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 			}
 
 			if (event.type == sf::Event::MouseButtonPressed)
@@ -108,11 +153,92 @@ int main(int argc, char ** argv)
 					currentLineupIdx = (currentLineupIdx + 1) % lineupNames.size();
 					currentLineup = lineupNames[currentLineupIdx];
 
-					placer.PlaceUnits(currentLineup, 9, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+				}
+
+				if (event.key.alt)
+				{
+					for (auto unit : unitsDrawables)
+					{
+						drawables.remove_if([&unit](auto it) { return unit == it; });
+					}
+
+					CirclePtr blockCircleDynamic = CreateCircle(dynamicBlockRadius, sf::Color::Blue, mousePosition);
+					drawables.push_back(blockCircleDynamic);
+					bool finishPlaceWater = false;
+					bool isMousePressed = false;
+					while (window.isOpen() && !finishPlaceWater)
+					{
+						sf::Event event;
+						while (window.pollEvent(event))
+						{
+							if (event.type == sf::Event::Closed)
+							{
+								window.close();
+							}
+							if (event.type == sf::Event::MouseButtonPressed)
+							{
+								isMousePressed = true;
+								auto newBlock = CreateCircleBlock(ElementType::BLOCK_LOW, blockCircleDynamic);
+								placer.AddBlock(newBlock);
+								auto newCircle = CreateCircle(dynamicBlockRadius, sf::Color::Blue, mousePosition);
+								drawables.push_back(newCircle);
+							}
+							if (event.type == sf::Event::MouseButtonReleased)
+							{
+								isMousePressed = false;
+							}
+							if (event.type == sf::Event::MouseMoved)
+							{
+								mousePosition = { (float)event.mouseMove.x, (float)event.mouseMove.y };
+								blockCircleDynamic->setPosition(mousePosition);
+								if (isMousePressed)
+								{
+									auto newBlock = CreateCircleBlock(ElementType::BLOCK_LOW, blockCircleDynamic);
+									placer.AddBlock(newBlock);
+									auto newCircle = CreateCircle(dynamicBlockRadius, sf::Color::Blue, mousePosition);
+									drawables.push_back(newCircle);
+
+									fpsCounter->setString(std::to_string(CountFps(lastTime, clock)));
+									window.clear();
+
+									for (auto& drawable : drawables)
+										window.draw(*drawable);
+
+									window.display();
+								}
+							}
+							if (event.type == sf::Event::KeyPressed)
+							{
+								if (event.key.alt)
+								{
+									drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+
+									finishPlaceWater = true;
+								}
+							}
+
+							
+						}
+
+						fpsCounter->setString(std::to_string(CountFps(lastTime, clock)));
+						window.clear();
+
+						for (auto& drawable : drawables)
+							window.draw(*drawable);
+
+						window.display();
+					}
+
+					drawables.remove(blockCircleDynamic);
+
+					placer.ConsoleMap();
 				}
 			}
 		}
 
+		auto str = std::to_string(CountFps(lastTime, clock));
+		fpsCounter->setString(str);
 		window.clear();
 		
 		for (auto& drawable : drawables)
