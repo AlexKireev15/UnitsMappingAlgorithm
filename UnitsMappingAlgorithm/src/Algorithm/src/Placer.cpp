@@ -86,12 +86,41 @@ void Placer::ClearUnitMapPosition()
 	if (m_unitDrawables.empty())
 		return;
 
-	for (size_t idx = 0u; idx < m_map.size(); ++idx)
+	for (auto& pUnit : m_unitDrawables)
 	{
-		for (size_t jdx = 0u; jdx < m_map[idx].size(); ++jdx)
+		auto bboxPoints = GetPoints(pUnit->body->getGlobalBounds());
+		sf::Vector2i minIdx(bboxPoints[0].x / m_cellSize.x, bboxPoints[0].y / m_cellSize.y),
+			maxIdx(bboxPoints[0].x / m_cellSize.x, bboxPoints[0].y / m_cellSize.y);
+		for (size_t idx = 1; idx < bboxPoints.size(); ++idx)
 		{
-			if (m_map[idx][jdx] == ElementType::UNIT)
-				m_map[idx][jdx] = ElementType::FREE;
+			size_t x = bboxPoints[idx].x / m_cellSize.x;
+			size_t y = bboxPoints[idx].y / m_cellSize.y;
+			if (minIdx.x > x)
+				minIdx.x = x;
+			if (minIdx.y > y)
+				minIdx.y = y;
+			if (maxIdx.x < x)
+				maxIdx.x = x;
+			if (maxIdx.y < y)
+				maxIdx.y = y;
+		}
+
+		for (size_t ydx = minIdx.y; ydx <= maxIdx.y; ++ydx)
+		{
+			if (ydx < 0)
+				continue;
+			if (ydx >= m_map.size())
+				break;
+			for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
+			{
+				if (xdx < 0)
+					continue;
+				if (xdx >= m_map[ydx].size())
+					break;
+
+				if (m_map[ydx][xdx] == ElementType::UNIT)
+					m_map[ydx][xdx] = ElementType::FREE;
+			}
 		}
 	}
 }
@@ -230,9 +259,9 @@ std::list<sf::Vector2f> Placer::GetWedgeLineup(size_t count, sf::Vector2f bounda
 std::list<sf::Vector2f> Placer::GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const
 {
 	std::list<Vector2f> result;
-	
-	size_t sizeX = std::ceil(sqrt(count));
-	size_t sizeY = std::floor(sqrt(count));
+
+	size_t sizeX = (size_t)(sqrt(count) + 1);
+	size_t sizeY = count / sizeX + 1;
 	float spacing = padding.x;
 	float totalSpace = boundary.x * sizeX + (sizeX > 0 ? (spacing * (sizeX - 1)) : 0);
 
@@ -242,7 +271,7 @@ std::list<sf::Vector2f> Placer::GetSquareLineup(size_t count, sf::Vector2f bound
 		float currentY = (idx - sizeY / 2.f + 0.5f) * (boundary.y + padding.y);
 		for (size_t jdx = 0; jdx < sizeX && totalPlaced < count; ++jdx, ++totalPlaced)
 		{
-			result.push_back({ boundary.x / 2.f + (boundary.x + spacing) * jdx - totalSpace / 2.f,  currentY});
+			result.push_back({ boundary.x / 2.f + (boundary.x + spacing) * jdx - totalSpace / 2.f,  currentY });
 		}
 	}
 
@@ -454,13 +483,58 @@ void Placer::ConsoleMap() const
 void Placer::AddBlock(BlockPtr pBlock)
 {
 	//m_blocks.push_back(pBlock);
-	for (size_t yIdx = 0; yIdx < m_map.size(); ++yIdx)
+	//for (size_t yIdx = 0; yIdx < m_map.size(); ++yIdx)
+	//{
+	//	for (size_t xIdx = 0; xIdx < m_map[yIdx].size(); ++xIdx)
+	//	{
+	//		FloatRect cellCoords({ m_cellSize.x * xIdx, m_cellSize.y * yIdx }, m_cellSize);
+	//		if (IsIntersects(cellCoords, pBlock))
+	//			m_map[yIdx][xIdx] = pBlock->GetType();
+	//	}
+	//}
+
+	auto bboxPoints = GetPoints(pBlock->GetBBox());
+	sf::Vector2i minIdx(bboxPoints[0].x / m_cellSize.x, bboxPoints[0].y / m_cellSize.y),
+		maxIdx(bboxPoints[0].x / m_cellSize.x, bboxPoints[0].y / m_cellSize.y);
+	for (size_t idx = 1; idx < bboxPoints.size(); ++idx)
 	{
-		for (size_t xIdx = 0; xIdx < m_map[yIdx].size(); ++xIdx)
+		size_t x = bboxPoints[idx].x / m_cellSize.x;
+		size_t y = bboxPoints[idx].y / m_cellSize.y;
+		if (minIdx.x > x)
+			minIdx.x = x;
+		if (minIdx.y > y)
+			minIdx.y = y;
+		if (maxIdx.x < x)
+			maxIdx.x = x;
+		if (maxIdx.y < y)
+			maxIdx.y = y;
+	}
+
+	for (size_t ydx = minIdx.y; ydx <= maxIdx.y; ++ydx)
+	{
+		if (ydx < 0)
+			continue;
+		if (ydx >= m_map.size())
+			break;
+		for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
 		{
-			FloatRect cellCoords({ m_cellSize.x * xIdx, m_cellSize.y * yIdx }, m_cellSize);
+			if (xdx < 0)
+				continue;
+			if (xdx >= m_map[ydx].size())
+				break;
+			if (m_map[ydx][xdx] == ElementType::BLOCK_HIGH || m_map[ydx][xdx] == ElementType::BLOCK_LOW /*|| m_map[ydx][xdx] == ElementType::UNIT*/)
+				continue;
+
+			FloatRect cellCoords({ m_cellSize.x * xdx, m_cellSize.y * ydx }, m_cellSize);
 			if (IsIntersects(cellCoords, pBlock))
-				m_map[yIdx][xIdx] = pBlock->GetType();
+				m_map[ydx][xdx] = pBlock->GetType();
 		}
 	}
+
+}
+
+void Placer::SetUnitDrawables(std::list<UnitDrawablePtr> unitDrawables)
+{
+	m_unitDrawables.clear();
+	m_unitDrawables = unitDrawables;
 }

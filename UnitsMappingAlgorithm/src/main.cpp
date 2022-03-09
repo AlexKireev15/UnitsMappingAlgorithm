@@ -62,8 +62,8 @@ std::shared_ptr<sf::Text> CreateText(const std::string& str)
 int main(int argc, char ** argv)
 {
 	sf::RenderWindow window(sf::VideoMode(900u, 600u), "Units mapping");
-	//window.setVerticalSyncEnabled(true);
-	const size_t unitCount = 11u;
+	window.setVerticalSyncEnabled(true);
+	size_t unitCount = 11u;
 	auto fpsCounter = CreateText("0");
 
 	std::list<DrawablePtr> drawables;
@@ -83,7 +83,7 @@ int main(int argc, char ** argv)
 	std::list<UnitDrawablePtr> unitsDrawables = CreateUnitDrawables(unitCount);
 
 	drawables.push_back(blockRectLeft);
-	drawables.push_back(blockCircleRight);
+	//drawables.push_back(blockCircleRight);
 	//drawables.push_back(mouse);
 	//drawables.push_back(mouseDir);
 	drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
 	RectBlockPtr pLeftBlock = CreateRectBlock(ElementType::BLOCK_HIGH, blockRectLeft);
 	CircleBlockPtr pRightBlock = CreateCircleBlock(ElementType::BLOCK_LOW, blockCircleRight);
 
-	Placer placer(window.getSize().x, window.getSize().y, std::list<BlockPtr>{pLeftBlock, pRightBlock}, unitsDrawables);
+	Placer placer(window.getSize().x, window.getSize().y, std::list<BlockPtr>{pLeftBlock/*, pRightBlock*/}, unitsDrawables);
 
 	std::array<std::string, 3> lineupNames = 
 	{
@@ -144,6 +144,28 @@ int main(int argc, char ** argv)
 
 			if (event.type == sf::Event::MouseButtonPressed)
 			{
+				if (event.mouseButton.button == sf::Mouse::Button::Left)
+				{
+					unitCount++;
+				}
+				if (event.mouseButton.button == sf::Mouse::Button::Right)
+				{
+					if(unitCount != 1)
+						unitCount--;
+				}
+
+				for (auto unit : unitsDrawables)
+				{
+					drawables.remove_if([&unit](auto it) { return unit == it; });
+				}
+
+				unitsDrawables.clear();
+
+				unitsDrawables = CreateUnitDrawables(unitCount);
+				placer.SetUnitDrawables(unitsDrawables);
+				drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+				placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+
 			}
 
 			if (event.type == sf::Event::KeyPressed)
@@ -232,7 +254,7 @@ int main(int argc, char ** argv)
 
 					drawables.remove(blockCircleDynamic);
 
-					placer.ConsoleMap();
+					//placer.ConsoleMap();
 				}
 			}
 		}

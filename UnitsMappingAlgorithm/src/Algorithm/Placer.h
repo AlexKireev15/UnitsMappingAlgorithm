@@ -1,6 +1,7 @@
 #pragma once
 #include "../Common.h"
 #include "Block.h"
+#include <list>
 
 class Placer
 {
@@ -9,6 +10,7 @@ public:
 	void PlaceUnits(const std::string& lineUpName, size_t count, sf::Vector2f position, sf::Vector2f direction, sf::Vector2f boundary, sf::Vector2f padding);
 	void ConsoleMap() const;
 	void AddBlock(BlockPtr pBlock);
+	void SetUnitDrawables(std::list<UnitDrawablePtr> unitDrawables);
 
 private:
 	std::list<sf::Vector2f> GetLineLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const;

@@ -11,6 +11,7 @@ public:
 	virtual bool IsIntersectedWithRect(const RectPtr& pRect, sf::Vector2f& correctionVector) = 0;
 	virtual bool IsIntersectRect(const sf::Vector2f& position, const sf::Vector2f& size) = 0;
 	virtual sf::Vector2f GetPosition() const = 0;
+	virtual sf::FloatRect GetBBox() const = 0;
 
 protected:
 	ElementType m_type;
@@ -25,6 +26,10 @@ public:
 		if (m_pCircle)
 			return m_pCircle->getPosition();
 		return { 0.f, 0.f };
+	}
+	sf::FloatRect GetBBox() const override
+	{
+		return m_pCircle->getGlobalBounds();
 	}
 	float GetRadius() const
 	{
@@ -52,6 +57,10 @@ public:
 		if (m_pRect)
 			return m_pRect->getPosition();
 		return { 0.f, 0.f };
+	}
+	sf::FloatRect GetBBox() const override
+	{
+		return m_pRect->getGlobalBounds();
 	}
 	sf::Vector2f GetSize() const
 	{
