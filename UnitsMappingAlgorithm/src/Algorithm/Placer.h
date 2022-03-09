@@ -22,10 +22,12 @@ private:
 	void SetUnitMapPosition(const std::array<sf::Vector2f, 4u>& rect);
 	void ClearUnitMapPosition();
 	void FixGunPosition(UnitDrawablePtr pUnitDrawable);
+	void MakeHighShadows(const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir);
 
 	std::list<BlockPtr> m_blocks;
 	std::list<UnitDrawablePtr> m_unitDrawables;
 	std::vector<std::vector<ElementType>> m_map;
 	sf::Vector2f m_worldSize;
 	sf::Vector2f m_cellSize;
+	std::vector<std::pair<size_t, size_t>> m_clearMapIdxs;
 };

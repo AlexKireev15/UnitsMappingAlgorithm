@@ -132,6 +132,70 @@ void Placer::FixGunPosition(UnitDrawablePtr pUnitDrawable)
 	pUnitDrawable->SetGunDirection(ndir);
 }
 
+void Placer::MakeHighShadows(const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir)
+{
+	if (m_unitDrawables.empty() || m_blocks.empty())
+		return;
+
+	for (auto& pBlock : m_blocks)
+	{
+		if (!pBlock || pBlock->GetType() != ElementType::BLOCK_HIGH)
+			continue;
+
+		std::array<sf::Vector2f, 3u> shadowPoints = GetTriangleShadowPoints(lineupPos, lineupDir, pBlock);
+		TriangleBlockPtr pShadowBlock = CreateTriangleBlock(ElementType::BLOCK_HIGH, CreateTriangle(shadowPoints));
+
+		auto bounds = GetPoints(pShadowBlock->GetDrawable()->getGlobalBounds());
+
+		sf::Vector2i minIdx(bounds[0].x / m_cellSize.x, bounds[0].y / m_cellSize.y),
+			maxIdx(bounds[0].x / m_cellSize.x, bounds[0].y / m_cellSize.y);
+		for (size_t idx = 1; idx < bounds.size(); ++idx)
+		{
+			size_t x = bounds[idx].x / m_cellSize.x;
+			size_t y = bounds[idx].y / m_cellSize.y;
+			if (minIdx.x > x)
+				minIdx.x = x;
+			if (minIdx.y > y)
+				minIdx.y = y;
+			if (maxIdx.x < x)
+				maxIdx.x = x;
+			if (maxIdx.y < y)
+				maxIdx.y = y;
+		}
+
+		for (size_t ydx = minIdx.y; ydx <= maxIdx.y; ++ydx)
+		{
+			if (ydx < 0)
+				continue;
+			if (ydx >= m_map.size())
+				break;
+			for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
+			{
+				if (xdx < 0)
+					continue;
+				if (xdx >= m_map[ydx].size())
+					break;
+
+				std::array<sf::Vector2f, 4u> field =
+				{
+					sf::Vector2f(m_cellSize.x * xdx, m_cellSize.y * ydx),
+					sf::Vector2f(m_cellSize.x * xdx, m_cellSize.y * (ydx + 1u)),
+					sf::Vector2f(m_cellSize.x * (xdx + 1u), m_cellSize.y * (ydx + 1u)),
+					sf::Vector2f(m_cellSize.x * (xdx + 1u), m_cellSize.y * ydx)
+
+				};
+
+				if (IsIntersects(field, pShadowBlock->GetDrawable()))
+				{
+					m_map[ydx][xdx] = ElementType::BLOCK_HIGH;
+					m_clearMapIdxs.push_back(std::make_pair(ydx, xdx));
+				}
+			}
+		}
+	}
+	
+}
+
 std::list<Vector2f> Placer::GetLineLineup(size_t count, Vector2f boundary, Vector2f padding) const
 {
 	std::list<Vector2f> result;
@@ -347,6 +411,14 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		pUnitDrawable->SetPosition(unitPosition);
 		pUnitDrawable->SetRotation(angle);
 		auto points = GetPoints(pUnitDrawable->body);
+
+		/*for (auto p : m_clearMapIdxs)
+		{
+			m_map[p.first][p.second] = ElementType::FREE;
+		}
+		m_clearMapIdxs.clear();*/
+		MakeHighShadows(position, direction);
+
 		if (GetAreaStatus(points) != ElementType::FREE)
 		{
 			unitPosition = FindClosestFreeArea(points, unitPosition);
@@ -361,7 +433,7 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		}
 		SetUnitMapPosition(points);
 
-		FixGunPosition(pUnitDrawable);
+		//FixGunPosition(pUnitDrawable);
 
 		++unitDrawableIt;
 	}

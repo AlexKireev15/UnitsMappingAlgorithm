@@ -3,10 +3,12 @@
 #include <cmath>
 #include <memory>
 #include <SFML/Graphics.hpp>
+#include <array>
 
 using DrawablePtr = std::shared_ptr<sf::Drawable>;
 using CirclePtr = std::shared_ptr<sf::CircleShape>;
 using RectPtr = std::shared_ptr<sf::RectangleShape>;
+using TrianglePtr = std::shared_ptr<sf::ConvexShape>;
 
 struct UnitDrawable : public sf::Drawable
 {
@@ -65,11 +67,23 @@ inline CirclePtr CreateCircle(float radius, const sf::Color& color = sf::Color::
 {
 	CirclePtr circle = std::make_shared<sf::CircleShape>(radius);
 	circle->setOrigin({ radius, radius });
-	//circle->setOrigin(radius, radius);
 	circle->setPosition(position);
 	circle->setFillColor(color);
 
 	return circle;
+}
+
+inline TrianglePtr CreateTriangle(const std::array<sf::Vector2f, 3u>& points, const sf::Color& color = sf::Color::White, const sf::Vector2f& position = { 0.f, 0.f })
+{
+	TrianglePtr triangle = std::make_shared<sf::ConvexShape>(3);
+	triangle->setOrigin((points.at(0) + points.at(1) + points.at(2)) / 3.f);
+	triangle->setPosition((points.at(0) + points.at(1) + points.at(2)) / 3.f);
+	triangle->setPoint(0, points.at(0));
+	triangle->setPoint(1, points.at(1));
+	triangle->setPoint(2, points.at(2));
+	triangle->setFillColor(color);
+
+	return triangle;
 }
 
 inline RectPtr CreateRect(const sf::Vector2f& size, const sf::Vector2f& origin, const sf::Color& color = sf::Color::White, const sf::Vector2f& position = { 0.f, 0.f })

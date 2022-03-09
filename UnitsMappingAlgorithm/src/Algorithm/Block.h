@@ -70,9 +70,31 @@ private:
 	RectPtr m_pRect;
 };
 
+class TriangleBlock : public Block
+{
+public:
+	TriangleBlock(const ElementType& type, TrianglePtr pTriangle) : Block(type), m_pTriangle(pTriangle) { }
+	sf::Vector2f GetPosition() const override
+	{
+		if (m_pTriangle)
+			return m_pTriangle->getPosition();
+		return { 0.f, 0.f };
+	}
+	TrianglePtr GetDrawable() const
+	{
+		return m_pTriangle;
+	}
+	bool IsIntersectedWithRect(const RectPtr& pRect, sf::Vector2f& correctionVector) override;
+	bool IsIntersectRect(const sf::Vector2f& position, const sf::Vector2f& size) override;
+
+private:
+	TrianglePtr m_pTriangle;
+};
+
 using BlockPtr = std::shared_ptr<Block>;
 using CircleBlockPtr = std::shared_ptr<CircleBlock>;
 using RectBlockPtr = std::shared_ptr<RectBlock>;
+using TriangleBlockPtr = std::shared_ptr<TriangleBlock>;
 
 inline CircleBlockPtr CreateCircleBlock(const ElementType& type, CirclePtr pCircle)
 {
@@ -81,6 +103,10 @@ inline CircleBlockPtr CreateCircleBlock(const ElementType& type, CirclePtr pCirc
 inline RectBlockPtr CreateRectBlock(const ElementType& type, RectPtr pRect)
 {
 	return std::make_shared<RectBlock>(type, pRect);
+}
+inline TriangleBlockPtr CreateTriangleBlock(const ElementType& type, TrianglePtr pTriangle)
+{
+	return std::make_shared<TriangleBlock>(type, pTriangle);
 }
 
 template<typename T>

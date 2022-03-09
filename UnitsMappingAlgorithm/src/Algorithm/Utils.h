@@ -47,8 +47,12 @@ inline float GetAngleBetween(const sf::Vector2f& a, const sf::Vector2f& b)
 bool IsIntersects(const sf::FloatRect& rect, const BlockPtr& pBlock);
 bool IsIntersects(const sf::FloatRect& rect, const CirclePtr& pCircle);
 bool IsIntersects(const sf::FloatRect& rect, const RectPtr& pRect);
+bool IsIntersects(const std::array<sf::Vector2f, 4u>& rect, const TrianglePtr& pTriangle);
 bool IsIntersects(const std::array<sf::Vector2f, 4u>& rectPointsA, const std::array<sf::Vector2f, 4u>& rectPointsB);
 
 std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect);
 std::array<sf::Vector2f, 4u> GetPoints(const sf::FloatRect& rect);
 std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect, const sf::Vector2f& offset);
+std::array<sf::Vector2f, 3u> GetPoints(const TrianglePtr& pTriangle);
+
+std::array<sf::Vector2f, 3u> GetTriangleShadowPoints(const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir, BlockPtr pBlock);

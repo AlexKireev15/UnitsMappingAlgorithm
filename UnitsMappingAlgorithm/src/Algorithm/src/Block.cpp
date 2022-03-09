@@ -38,3 +38,13 @@ bool RectBlock::IsIntersectRect(const sf::Vector2f& position, const sf::Vector2f
 {
 	return false;
 }
+
+bool TriangleBlock::IsIntersectedWithRect(const RectPtr& pRect, sf::Vector2f& correctionVector)
+{
+	return false;
+}
+
+bool TriangleBlock::IsIntersectRect(const sf::Vector2f& position, const sf::Vector2f& size)
+{
+	return false;
+}

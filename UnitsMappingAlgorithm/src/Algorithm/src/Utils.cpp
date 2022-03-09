@@ -10,6 +10,10 @@ bool IsIntersects(const sf::FloatRect& rect, const BlockPtr& pBlock)
     if (pRectBlock)
         return IsIntersects(rect, pRectBlock->GetDrawable());
 
+    /*TriangleBlockPtr pTriangleBlock = Cast<TriangleBlock>(pBlock);
+    if (pTriangleBlock)
+        return IsIntersects(rect, pTriangleBlock->GetDrawable());*/
+
     return false;
 }
 
@@ -22,6 +26,25 @@ bool IsPointInsideRect(std::array<sf::Vector2f, 4u> rectPoints, const sf::Vector
         size_t jdx = (idx + 1) % 4u;
         auto a = rectPoints[jdx] - rectPoints[idx];
         auto b = point - rectPoints[idx];
+        auto product = CrossProductAbs(a, b);
+        if (product > 0.f)
+            isPositive = 1;
+        else if (product < 0.f)
+            isNegative = 1;
+    }
+
+    return isPositive ^ isNegative;
+}
+
+bool IsPointInsideTriangle(std::array<sf::Vector2f, 3u> trianglePoints, const sf::Vector2f& point)
+{
+    int isPositive = 0;
+    int isNegative = 0;
+    for (size_t idx = 0; idx < 3u; ++idx)
+    {
+        size_t jdx = (idx + 1) % 3u;
+        auto a = trianglePoints[jdx] - trianglePoints[idx];
+        auto b = point - trianglePoints[idx];
         auto product = CrossProductAbs(a, b);
         if (product > 0.f)
             isPositive = 1;
@@ -79,6 +102,24 @@ bool IsIntersects(const sf::FloatRect& rect, const CirclePtr& pCircle)
         IsIntersects(rectPoints[3], rectPoints[0], pCircle);
 }
 
+bool IsIntersects(const std::array<sf::Vector2f, 4u>& rectPoints, const TrianglePtr& pTriangle)
+{
+    std::array<sf::Vector2f, 3u> trianglePoints = GetPoints(pTriangle);
+    for (sf::Vector2f& trianglePoint : trianglePoints)
+    {
+        if (IsPointInsideRect(rectPoints, trianglePoint))
+            return true;
+    }
+
+    for (auto& rectPoint : rectPoints)
+    {
+        if (IsPointInsideTriangle(trianglePoints, rectPoint))
+            return true;
+    }
+
+    return false;
+}
+
 bool TryIntersect(const std::array<sf::Vector2f, 4u>& rectPointsA, const std::array<sf::Vector2f, 4u>& rectPointsB)
 {
     for (auto a : rectPointsA)
@@ -122,6 +163,58 @@ std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect, const sf::Vector2f&
     return points;
 }
 
+std::array<sf::Vector2f, 3u> GetTriangleShadowPoints(const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir, BlockPtr pBlock)
+{
+    if (!pBlock)
+        return std::array<sf::Vector2f, 3u>();
+
+    sf::Vector2f guide(-lineupDir.y, lineupDir.x);
+    sf::Vector2f secondPoint = lineupPos + guide;
+
+    sf::Vector2f leftPoint, rightPoint;
+
+    CircleBlockPtr pCircleBlock = Cast<CircleBlock>(pBlock);
+    RectBlockPtr pRectBlock = Cast<RectBlock>(pBlock);
+    if (pCircleBlock)
+    {
+        auto translation = Normalize(guide) * pCircleBlock->GetRadius();
+        rightPoint = pCircleBlock->GetPosition() + translation;
+        leftPoint = pCircleBlock->GetPosition() - translation;
+    }
+    else if (pRectBlock)
+    {
+        auto rectPoints = GetPoints(pRectBlock->GetDrawable());
+        auto centerVector = pRectBlock->GetPosition() - lineupPos;
+        float minAngle = 380.f, maxAngle = -380.f;
+        sf::Vector2f minPoint, maxPoint;
+        for (auto p : rectPoints)
+        {
+            auto v = p - lineupPos;
+            float angle = GetAngleBetween(centerVector, v);
+            if (angle > maxAngle)
+            {
+                maxAngle = angle;
+                maxPoint = p;
+            }
+            if (angle < minAngle)
+            {
+                minAngle = angle;
+                minPoint = p;
+            }
+        }
+
+        leftPoint = maxPoint;
+        rightPoint = minPoint;
+    }
+    else
+        return std::array<sf::Vector2f, 3u>();
+
+    auto blockPos = pBlock->GetPosition();
+    auto thirdPoint = blockPos + (lineupPos - blockPos) / 2.f;
+
+    return { leftPoint, rightPoint, thirdPoint };
+}
+
 std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect)
 {
     std::array<sf::Vector2f, 4u> points =
@@ -148,4 +241,21 @@ std::array<sf::Vector2f, 4u> GetPoints(const sf::FloatRect& rect)
         sf::Vector2f(rect.left + rect.width, rect.top + rect.height),
         sf::Vector2f(rect.left + rect.width, rect.top),
     };;
+}
+
+std::array<sf::Vector2f, 3u> GetPoints(const TrianglePtr& pTriangle)
+{
+    std::array<sf::Vector2f, 3u> points =
+    {
+        pTriangle->getPoint(0),
+        pTriangle->getPoint(1),
+        pTriangle->getPoint(2),
+    };
+    sf::Transform t = pTriangle->getTransform();
+
+    for (auto& point : points)
+    {
+        point = t * point;
+    }
+    return points;
 }
