@@ -93,6 +93,10 @@ public:
 	{
 		return m_pTriangle;
 	}
+	virtual sf::FloatRect GetBBox() const
+	{
+		return m_pTriangle->getGlobalBounds();
+	}
 	bool IsIntersectedWithRect(const RectPtr& pRect, sf::Vector2f& correctionVector) override;
 	bool IsIntersectRect(const sf::Vector2f& position, const sf::Vector2f& size) override;
 

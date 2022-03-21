@@ -49,6 +49,7 @@ bool IsIntersects(const sf::FloatRect& rect, const CirclePtr& pCircle);
 bool IsIntersects(const sf::FloatRect& rect, const RectPtr& pRect);
 bool IsIntersects(const std::array<sf::Vector2f, 4u>& rect, const TrianglePtr& pTriangle);
 bool IsIntersects(const std::array<sf::Vector2f, 4u>& rectPointsA, const std::array<sf::Vector2f, 4u>& rectPointsB);
+bool IsIntersectsWithRay(const sf::FloatRect& rect, const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir);
 
 std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect);
 std::array<sf::Vector2f, 4u> GetPoints(const sf::FloatRect& rect);

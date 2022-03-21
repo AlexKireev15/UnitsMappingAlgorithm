@@ -140,6 +140,46 @@ bool IsIntersects(const std::array<sf::Vector2f, 4u>& rectPointsA, const std::ar
     return TryIntersect(rectPointsA, rectPointsB) && TryIntersect(rectPointsB, rectPointsA);
 }
 
+bool IsIntersectsSegmentWithRay(const sf::Vector2f& s1, const sf::Vector2f& s2, const sf::Vector2f& p1, const sf::Vector2f& p2)
+{
+    const float a1 = s1.y - s2.y,
+                b1 = s2.x - s1.x,
+                c1 = s1.x * s2.y - s2.x * s1.y,
+                a2 = p1.y - p2.y,
+                b2 = p2.x - p1.x,
+                c2 = p1.x * p2.y - p2.x * p1.y;
+
+    float det = a1 * b2 - a2 * b1;
+    if (IsZero(det))
+        return false;
+    float x = (b1 * c2 - b2 * c1) / det,
+          y = (a2 * c1 - a1 * c2) / det;
+    sf::Vector2f result = { x, y };
+
+    auto ray1 = p2 - p1;
+    auto ray2 = result - p1;
+    
+
+    return sign(DotProduct(s2 - s1, result - s1)) != sign(DotProduct(s2 - s1, result - s2))/* && ray1.x / ray1.y == ray2.x / ray2.y && DotProduct(ray1, ray2) > 0.f*/;
+}
+
+bool IsIntersectsWithRay(const sf::FloatRect& rect, const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir)
+{
+    auto rectPoints = GetPoints(rect);
+    sf::Vector2f guide(-lineupDir.y, lineupDir.x);
+    sf::Vector2f p1 = lineupPos;
+    sf::Vector2f p2 = lineupPos + lineupDir;
+
+    for (size_t idx = 0u; idx < 4u; ++idx)
+    {
+        auto s1 = rectPoints[idx];
+        auto s2 = rectPoints[(idx + 1) % 4];
+        if (IsIntersectsSegmentWithRay(s1, s2, p1, p2))
+            return true;
+    }
+    return false;
+}
+
 bool IsIntersects(const sf::FloatRect& rect, const RectPtr& pRect)
 {
     auto rectPointsA = GetPoints(rect);
@@ -210,7 +250,7 @@ std::array<sf::Vector2f, 3u> GetTriangleShadowPoints(const sf::Vector2f& lineupP
         return std::array<sf::Vector2f, 3u>();
 
     auto blockPos = pBlock->GetPosition();
-    auto thirdPoint = blockPos + (lineupPos - blockPos) / 2.f;
+    auto thirdPoint = blockPos + Normalize(lineupPos - blockPos) * (sqrt(pBlock->GetBBox().width * pBlock->GetBBox().width + pBlock->GetBBox().height * pBlock->GetBBox().height));
 
     return { leftPoint, rightPoint, thirdPoint };
 }

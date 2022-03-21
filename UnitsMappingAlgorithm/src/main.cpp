@@ -86,7 +86,7 @@ int main(int argc, char ** argv)
 	//drawables.push_back(blockCircleRight);
 	//drawables.push_back(mouse);
 	//drawables.push_back(mouseDir);
-	drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+	//drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
 
 	drawables.push_back(fpsCounter);
 
@@ -129,7 +129,7 @@ int main(int argc, char ** argv)
 					dir = { dir.x * cos(rotAngleRad) - dir.y * sin(rotAngleRad), dir.x * sin(rotAngleRad) + dir.y * cos(rotAngleRad) };
 					//mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
 
-					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+					//placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 				}
 			}
 
@@ -139,32 +139,33 @@ int main(int argc, char ** argv)
 				//mouse->setPosition(mousePosition);
 				//mouseDir->setPosition(mousePosition + mouseDirRadius * dir);
 
-				placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+				//placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 			}
 
 			if (event.type == sf::Event::MouseButtonPressed)
 			{
 				if (event.mouseButton.button == sf::Mouse::Button::Left)
 				{
-					unitCount++;
+					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+					drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
 				}
-				if (event.mouseButton.button == sf::Mouse::Button::Right)
-				{
-					if(unitCount != 1)
-						unitCount--;
-				}
+				//if (event.mouseButton.button == sf::Mouse::Button::Right)
+				//{
+				//	if(unitCount != 1)
+				//		unitCount--;
+				//}
 
-				for (auto unit : unitsDrawables)
-				{
-					drawables.remove_if([&unit](auto it) { return unit == it; });
-				}
+				///*for (auto unit : unitsDrawables)
+				//{
+				//	drawables.remove_if([&unit](auto it) { return unit == it; });
+				//}*/
 
-				unitsDrawables.clear();
+				//unitsDrawables.clear();
 
-				unitsDrawables = CreateUnitDrawables(unitCount);
-				placer.SetUnitDrawables(unitsDrawables);
-				drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
-				placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+				//unitsDrawables = CreateUnitDrawables(unitCount);
+				//placer.SetUnitDrawables(unitsDrawables);
+				//drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+				//placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 
 			}
 
@@ -175,15 +176,15 @@ int main(int argc, char ** argv)
 					currentLineupIdx = (currentLineupIdx + 1) % lineupNames.size();
 					currentLineup = lineupNames[currentLineupIdx];
 
-					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+					//placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
 				}
 
 				if (event.key.alt)
 				{
-					for (auto unit : unitsDrawables)
+					/*for (auto unit : unitsDrawables)
 					{
 						drawables.remove_if([&unit](auto it) { return unit == it; });
-					}
+					}*/
 
 					CirclePtr blockCircleDynamic = CreateCircle(dynamicBlockRadius, sf::Color::Blue, mousePosition);
 					drawables.push_back(blockCircleDynamic);
@@ -234,7 +235,7 @@ int main(int argc, char ** argv)
 							{
 								if (event.key.alt)
 								{
-									drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+									///drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
 
 									finishPlaceWater = true;
 								}
@@ -254,7 +255,7 @@ int main(int argc, char ** argv)
 
 					drawables.remove(blockCircleDynamic);
 
-					//placer.ConsoleMap();
+					placer.ConsoleMap();
 				}
 			}
 		}

@@ -32,6 +32,20 @@ void Placer::FillMap(float worldSizeX, float worldSizeY)
 	}
 }
 
+void Placer::FillDynamicMap()
+{
+	m_dynamicMap.clear();
+	for (auto line : m_map)
+	{
+		auto dynamicLine = std::vector<ElementType>();
+		for (auto e : line)
+		{
+			dynamicLine.push_back(ElementType(e));
+		}
+		m_dynamicMap.push_back(dynamicLine);
+	}
+}
+
 void Placer::SetUnitMapPosition(const std::array<sf::Vector2f, 4u>& rect)
 {
 	if (m_unitDrawables.empty())
@@ -57,13 +71,13 @@ void Placer::SetUnitMapPosition(const std::array<sf::Vector2f, 4u>& rect)
 	{
 		if (ydx < 0)
 			continue;
-		if (ydx >= m_map.size())
+		if (ydx >= m_dynamicMap.size())
 			break;
 		for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
 		{
 			if (xdx < 0)
 				continue;
-			if (xdx >= m_map[ydx].size())
+			if (xdx >= m_dynamicMap[ydx].size())
 				break;
 
 			std::array<sf::Vector2f, 4u> field =
@@ -76,7 +90,7 @@ void Placer::SetUnitMapPosition(const std::array<sf::Vector2f, 4u>& rect)
 			};
 
 			if (IsIntersects(rect, field))
-				m_map[ydx][xdx] = ElementType::UNIT;
+				m_dynamicMap[ydx][xdx] = ElementType::UNIT;
 		}
 	}
 }
@@ -109,17 +123,17 @@ void Placer::ClearUnitMapPosition()
 		{
 			if (ydx < 0)
 				continue;
-			if (ydx >= m_map.size())
+			if (ydx >= m_dynamicMap.size())
 				break;
 			for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
 			{
 				if (xdx < 0)
 					continue;
-				if (xdx >= m_map[ydx].size())
+				if (xdx >= m_dynamicMap[ydx].size())
 					break;
 
-				if (m_map[ydx][xdx] == ElementType::UNIT)
-					m_map[ydx][xdx] = ElementType::FREE;
+				if (m_dynamicMap[ydx][xdx] == ElementType::UNIT)
+					m_dynamicMap[ydx][xdx] = ElementType::FREE;
 			}
 		}
 	}
@@ -171,6 +185,10 @@ void Placer::MakeHighShadows(const sf::Vector2f& lineupPos, const sf::Vector2f& 
 		if (!pBlock || pBlock->GetType() != ElementType::BLOCK_HIGH)
 			continue;
 
+		if (!IsIntersectsWithRay(pBlock->GetBBox(), lineupPos, lineupDir))
+		{
+			continue;
+		}
 		std::array<sf::Vector2f, 3u> shadowPoints = GetTriangleShadowPoints(lineupPos, lineupDir, pBlock);
 		TriangleBlockPtr pShadowBlock = CreateTriangleBlock(ElementType::BLOCK_HIGH, CreateTriangle(shadowPoints));
 
@@ -196,13 +214,13 @@ void Placer::MakeHighShadows(const sf::Vector2f& lineupPos, const sf::Vector2f& 
 		{
 			if (ydx < 0)
 				continue;
-			if (ydx >= m_map.size())
+			if (ydx >= m_dynamicMap.size())
 				break;
 			for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
 			{
 				if (xdx < 0)
 					continue;
-				if (xdx >= m_map[ydx].size())
+				if (xdx >= m_dynamicMap[ydx].size())
 					break;
 
 				std::array<sf::Vector2f, 4u> field =
@@ -216,13 +234,84 @@ void Placer::MakeHighShadows(const sf::Vector2f& lineupPos, const sf::Vector2f& 
 
 				if (IsIntersects(field, pShadowBlock->GetDrawable()))
 				{
-					m_map[ydx][xdx] = ElementType::BLOCK_HIGH;
-					m_clearMapIdxs.push_back(std::make_pair(ydx, xdx));
+					m_dynamicMap[ydx][xdx] = ElementType::BLOCK_HIGH;
+					//m_clearMapIdxs.push_back(std::make_pair(ydx, xdx));
 				}
 			}
 		}
 	}
 	
+}
+
+#include <queue>
+
+void Placer::CheckHoles()
+{
+	std::vector<std::vector<int>> was(m_map.size(), std::vector<int>(m_map[0].size(), -1));
+	std::queue <std::pair<size_t, size_t>> q;
+	size_t cur = 0;
+
+	for (size_t idx = 0u; idx < m_map.size(); ++idx)
+	{
+		for (size_t jdx = 0u; jdx < m_map[idx].size(); ++jdx)
+		{
+			if (m_map[idx][jdx] != ElementType::FREE)
+				continue;
+			if (was[idx][jdx] != -1)
+				continue;
+			q.push(std::make_pair(idx, jdx));
+
+			while (!q.empty())
+			{
+				auto v = q.front();
+				q.pop();
+				if (was[v.first][v.second] != -1)
+					continue;
+
+				was[v.first][v.second] = cur;
+				
+				std::vector<std::pair<size_t, size_t>> neighbours;
+
+				if(v.first < m_map.size() - 1)
+					neighbours.push_back(std::make_pair(v.first + 1u, v.second));
+				if(v.second < m_map[v.first].size() - 1)
+					neighbours.push_back(std::make_pair(v.first, v.second + 1u));
+				if(v.first > 0)
+					neighbours.push_back(std::make_pair(v.first - 1u, v.second));
+				if(v.second > 0)
+					neighbours.push_back(std::make_pair(v.first, v.second - 1u));
+
+				for (auto neighbour : neighbours)
+				{
+					if (m_map[neighbour.first][neighbour.second] == ElementType::FREE && was[neighbour.first][neighbour.second] == -1)
+						q.push(neighbour);
+				}
+			}
+			cur++;
+		}
+	}
+
+	for (size_t idx = 0u; idx < m_map.size(); ++idx)
+	{
+		for (size_t jdx = 0u; jdx < m_map[idx].size(); ++jdx)
+		{
+			if (m_map[idx][jdx] != ElementType::FREE)
+				continue;
+			if (was[idx][jdx] != 0)
+			{
+				m_map[idx][jdx] = ElementType::BLOCK_LOW;
+			}
+		}
+	}
+
+	/*for (auto y : was)
+	{
+		for (auto x : y)
+		{
+			std::cout << (x == -1 ? 0 : x + 1) << " ";
+		}
+		std::cout << std::endl;
+	}*/
 }
 
 std::list<Vector2f> Placer::GetLineLineup(size_t count, Vector2f boundary, Vector2f padding) const
@@ -303,15 +392,15 @@ ElementType Placer::GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) cons
 	{
 		if (ydx < 0)
 			continue;
-		if (ydx >= m_map.size())
+		if (ydx >= m_dynamicMap.size())
 			break;
 		for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
 		{
 			if (xdx < 0)
 				continue;
-			if (xdx >= m_map[ydx].size())
+			if (xdx >= m_dynamicMap[ydx].size())
 				break;
-			if (m_map[ydx][xdx] == ElementType::FREE /*|| m_map[ydx][xdx] == ElementType::UNIT*/)
+			if (m_dynamicMap[ydx][xdx] == ElementType::FREE /*|| m_dynamicMap[ydx][xdx] == ElementType::UNIT*/)
 				continue;
 
 			std::array<sf::Vector2f, 4u> field =
@@ -324,7 +413,7 @@ ElementType Placer::GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) cons
 			};
 
 			if (IsIntersects(rect, field))
-				return m_map[ydx][xdx];
+				return m_dynamicMap[ydx][xdx];
 		}
 	}
 
@@ -356,15 +445,15 @@ ElementType Placer::GetAreaStatusFast(const std::array<sf::Vector2f, 4u>& rect) 
 	{
 		if (ydx < 0)
 			continue;
-		if (ydx >= m_map.size())
+		if (ydx >= m_dynamicMap.size())
 			break;
 		for (size_t xdx = minIdx.x; xdx <= maxIdx.x; ++xdx)
 		{
 			if (xdx < 0)
 				continue;
-			if (xdx >= m_map[ydx].size())
+			if (xdx >= m_dynamicMap[ydx].size())
 				break;
-			if (m_map[ydx][xdx] == ElementType::FREE)
+			if (m_dynamicMap[ydx][xdx] == ElementType::FREE)
 				continue;
 
 			std::array<sf::Vector2f, 4u> field =
@@ -377,7 +466,7 @@ ElementType Placer::GetAreaStatusFast(const std::array<sf::Vector2f, 4u>& rect) 
 			};
 
 			
-			return m_map[ydx][xdx];
+			return m_dynamicMap[ydx][xdx];
 		}
 	}
 
@@ -426,6 +515,9 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 
 	ClearUnitMapPosition();
 
+	CheckHoles();
+	FillDynamicMap();
+
 	auto unitDrawableIt = m_unitDrawables.begin();
 	for (auto lineupTranslation : lineupTranslations)
 	{
@@ -439,11 +531,12 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		unitPosition = t.transformPoint(unitPosition);
 		pUnitDrawable->SetPosition(unitPosition);
 		pUnitDrawable->SetRotation(angle);
+		pUnitDrawable->SetGunRotation(angle);
 		auto points = GetPoints(pUnitDrawable->body);
 
 		/*for (auto p : m_clearMapIdxs)
 		{
-			m_map[p.first][p.second] = ElementType::FREE;
+			m_dynamicMap[p.first][p.second] = ElementType::FREE;
 		}
 		m_clearMapIdxs.clear();*/
 		MakeHighShadows(position, direction);
@@ -466,11 +559,14 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 
 		++unitDrawableIt;
 	}
+
+	//ConsoleMap();
+	//CheckHoles();
 }
 
 void Placer::ConsoleMap() const
 {
-	for (auto y : m_map)
+	for (auto y : m_dynamicMap)
 	{
 		for (auto x : y)
 		{
