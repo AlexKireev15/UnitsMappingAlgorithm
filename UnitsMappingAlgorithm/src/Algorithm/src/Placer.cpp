@@ -32,15 +32,23 @@ void Placer::FillMap(float worldSizeX, float worldSizeY)
 	}
 }
 
-void Placer::FillDynamicMap()
+void Placer::FillDynamicMap(const sf::Vector2f& position)
 {
+	int connectivity = GetConnectivity(position);
+	if (connectivity < 0)
+		connectivity = 0;
+
 	m_dynamicMap.clear();
-	for (auto line : m_map)
+	for (size_t yIdx = 0u; yIdx < m_map.size(); ++yIdx)
 	{
 		auto dynamicLine = std::vector<ElementType>();
-		for (auto e : line)
+		for (size_t xIdx = 0u; xIdx < m_map[yIdx].size(); ++xIdx)
 		{
-			dynamicLine.push_back(ElementType(e));
+			int cellConnectivity = m_connectivityMap[yIdx][xIdx];
+			if(cellConnectivity > 0 && cellConnectivity != connectivity)
+				dynamicLine.push_back(ElementType::BLOCK_LOW);
+			else
+				dynamicLine.push_back(ElementType(m_map[yIdx][xIdx]));
 		}
 		m_dynamicMap.push_back(dynamicLine);
 	}
@@ -291,7 +299,7 @@ void Placer::CheckHoles()
 		}
 	}
 
-	for (size_t idx = 0u; idx < m_map.size(); ++idx)
+	/*for (size_t idx = 0u; idx < m_map.size(); ++idx)
 	{
 		for (size_t jdx = 0u; jdx < m_map[idx].size(); ++jdx)
 		{
@@ -302,7 +310,7 @@ void Placer::CheckHoles()
 				m_map[idx][jdx] = ElementType::BLOCK_LOW;
 			}
 		}
-	}
+	}*/
 
 	/*for (auto y : was)
 	{
@@ -312,6 +320,7 @@ void Placer::CheckHoles()
 		}
 		std::cout << std::endl;
 	}*/
+	m_connectivityMap = was;
 }
 
 std::list<Vector2f> Placer::GetLineLineup(size_t count, Vector2f boundary, Vector2f padding) const
@@ -473,19 +482,23 @@ ElementType Placer::GetAreaStatusFast(const std::array<sf::Vector2f, 4u>& rect) 
 	return ElementType::FREE;
 }
 
-sf::Vector2f Placer::FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rect, const sf::Vector2f& position) const
+sf::Vector2f Placer::FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rect, const sf::Vector2f& position, const sf::Vector2f& lineupPosition, const sf::Vector2f& direction) const
 {
+	sf::Vector2f origin(-direction.y, direction.x);
 	size_t shiftAbs = 1;
 	
 	auto points = rect;
-	while (GetAreaStatus(points) != ElementType::FREE)
+	while (GetAreaStatus(points) != ElementType::FREE && shiftAbs <= 10)
 	{
-		for (float angle = 0.f; angle < 360.f && GetAreaStatusFast(points) != ElementType::FREE; angle += 15.f)
+		//for (float angle = 0.f; angle < 360.f && GetAreaStatusFast(points) != ElementType::FREE; angle += 15.f)
+		float sign = 1.f;
+		for (size_t idx = 0u; idx < 2u; ++idx, sign *= -1.f)
 		{
 			points = rect;
-			sf::Transform t;
+			/*sf::Transform t;
 			t.rotate(angle, { 0.f, 0.f });
-			sf::Vector2f shiftDir = t * sf::Vector2f(0.f, 1.f);
+			sf::Vector2f shiftDir = t * sf::Vector2f(0.f, 1.f);*/
+			sf::Vector2f shiftDir = sign * origin;
 
 			for (auto& point : points)
 			{
@@ -496,8 +509,59 @@ sf::Vector2f Placer::FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rec
 		shiftAbs++;
 	}
 
+	if (shiftAbs == 10)
+	{
+		while (GetAreaStatus(points) != ElementType::FREE)
+		{
+			for (float angle = 0.f; angle < 360.f && GetAreaStatusFast(points) != ElementType::FREE; angle += 15.f)
+			{
+				points = rect;
+				sf::Transform t;
+				t.rotate(angle, { 0.f, 0.f });
+				sf::Vector2f shiftDir = t * sf::Vector2f(0.f, 1.f);
+				for (auto& point : points)
+				{
+					point.x += shiftDir.x * shiftAbs * m_cellSize.x;
+					point.y += shiftDir.y * shiftAbs * m_cellSize.y;
+				}
+			}
+			shiftAbs++;
+		}
+	}
+
 	auto offset = rect[0] - points[0];
 	return position - offset;
+}
+
+int Placer::GetConnectivity(const sf::Vector2f & pos) const
+{
+	return m_connectivityMap[pos.y / m_cellSize.y][pos.x / m_cellSize.x];
+}
+
+void Placer::FixRotationByBlocks(UnitDrawablePtr& pUnitDrawable, const sf::Vector2f& position, const sf::Vector2f& direction) const
+{
+	for (auto pBlock : m_blocks)
+	{
+		if (!pBlock || pBlock->GetType() != ElementType::BLOCK_HIGH)
+			continue;
+
+		if (GetAbs(pBlock->GetPosition() - position) > 200.f)
+			continue;
+
+		auto blockBBox = pBlock->GetBBox();
+		if (!IsIntersectsWithRay(blockBBox, position, direction))
+		{
+			continue;
+		}
+
+		auto leftRightPoints = GetLeftAndRightPoint(blockBBox, position, direction);
+		float firstAngle = GetAngleBetween(direction, leftRightPoints.first - position),
+		secondAngle = GetAngleBetween(direction, leftRightPoints.second - position);
+
+		float rotateAngle = abs(firstAngle) <= abs(secondAngle) ? firstAngle : secondAngle;
+		pUnitDrawable->SetRotation(pUnitDrawable->GetRotation() + rotateAngle);
+		pUnitDrawable->SetGunRotation(pUnitDrawable->GetGunRotation() + rotateAngle);
+	}
 }
 
 void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding)
@@ -511,16 +575,21 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		lineupTranslations = GetSquareLineup(count, boundary, padding);
 
 	Vector2f Oy = { 0.f, -1.f };
-	float angle = GetAngleBetween(direction, Oy);
+	float angle = GetAngleBetween(Oy, direction);
 
 	ClearUnitMapPosition();
 
 	CheckHoles();
-	FillDynamicMap();
+	FillDynamicMap(position);
+	MakeHighShadows(position, direction);
 
 	auto unitDrawableIt = m_unitDrawables.begin();
-	for (auto lineupTranslation : lineupTranslations)
+	//for (auto lineupTranslation : lineupTranslations)
+	auto forwardIt = lineupTranslations.begin();
+	auto backIt = --lineupTranslations.end();
+	for(size_t idx = 0u; idx < lineupTranslations.size(); ++idx)
 	{
+		auto lineupTranslation = *(idx % 2 == 0 ? forwardIt++ : backIt--);
 		if (unitDrawableIt == m_unitDrawables.end())
 			break;
 		auto pUnitDrawable = *unitDrawableIt;
@@ -532,20 +601,15 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		pUnitDrawable->SetPosition(unitPosition);
 		pUnitDrawable->SetRotation(angle);
 		pUnitDrawable->SetGunRotation(angle);
+
 		auto points = GetPoints(pUnitDrawable->body);
-
-		/*for (auto p : m_clearMapIdxs)
-		{
-			m_dynamicMap[p.first][p.second] = ElementType::FREE;
-		}
-		m_clearMapIdxs.clear();*/
-		MakeHighShadows(position, direction);
-
 		if (GetAreaStatus(points) != ElementType::FREE)
 		{
-			unitPosition = FindClosestFreeArea(points, unitPosition);
+			unitPosition = FindClosestFreeArea(points, unitPosition, position, direction);
 			pUnitDrawable->SetPosition(unitPosition);
 		}
+
+		FixRotationByBlocks(pUnitDrawable, unitPosition, direction);
 		points = GetPoints(pUnitDrawable->body);
 		sf::Transform scaleT;
 		scaleT.scale({ 0.75f, 0.75f }, pUnitDrawable->body->getPosition());
@@ -554,8 +618,6 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 			p = scaleT.transformPoint(p);
 		}
 		SetUnitMapPosition(points);
-
-		//FixGunPosition(pUnitDrawable);
 
 		++unitDrawableIt;
 	}

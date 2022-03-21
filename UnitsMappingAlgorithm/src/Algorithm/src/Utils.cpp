@@ -159,16 +159,15 @@ bool IsIntersectsSegmentWithRay(const sf::Vector2f& s1, const sf::Vector2f& s2, 
     auto ray1 = p2 - p1;
     auto ray2 = result - p1;
     
-
-    return sign(DotProduct(s2 - s1, result - s1)) != sign(DotProduct(s2 - s1, result - s2))/* && ray1.x / ray1.y == ray2.x / ray2.y && DotProduct(ray1, ray2) > 0.f*/;
+    return sign(DotProduct(s2 - s1, result - s1)) != sign(DotProduct(s2 - s1, result - s2)) && sign(DotProduct(p2 - result, ray1)) == sign(DotProduct(p2 - result, ray2));
 }
 
-bool IsIntersectsWithRay(const sf::FloatRect& rect, const sf::Vector2f& lineupPos, const sf::Vector2f& lineupDir)
+bool IsIntersectsWithRay(const sf::FloatRect& rect, const sf::Vector2f& rayPos, const sf::Vector2f& rayDir)
 {
     auto rectPoints = GetPoints(rect);
-    sf::Vector2f guide(-lineupDir.y, lineupDir.x);
-    sf::Vector2f p1 = lineupPos;
-    sf::Vector2f p2 = lineupPos + lineupDir;
+    sf::Vector2f guide(-rayDir.y, rayDir.x);
+    sf::Vector2f p1 = rayPos;
+    sf::Vector2f p2 = rayPos + rayDir;
 
     for (size_t idx = 0u; idx < 4u; ++idx)
     {
@@ -253,6 +252,31 @@ std::array<sf::Vector2f, 3u> GetTriangleShadowPoints(const sf::Vector2f& lineupP
     auto thirdPoint = blockPos + Normalize(lineupPos - blockPos) * (sqrt(pBlock->GetBBox().width * pBlock->GetBBox().width + pBlock->GetBBox().height * pBlock->GetBBox().height));
 
     return { leftPoint, rightPoint, thirdPoint };
+}
+
+std::pair<sf::Vector2f, sf::Vector2f> GetLeftAndRightPoint(const sf::FloatRect & rect, const sf::Vector2f & dimPos, const sf::Vector2f & dimDir)
+{
+	sf::Vector2f origin(-dimDir.y, dimDir.x);
+	auto points = GetPoints(rect);
+
+	sf::Vector2f leftPoint = points[0], rightPoint = points[0];
+	float minAngle = 366.f, maxAngle = 0.f;
+	for (size_t idx = 1u; idx < points.size(); ++idx)
+	{
+		auto p = points[idx];
+		float angle = std::abs(GetAngleBetween(origin, p - dimPos));
+		if (angle < minAngle)
+		{
+			minAngle = angle;
+			rightPoint = p;
+		}
+		if (angle > maxAngle)
+		{
+			maxAngle = angle;
+			leftPoint = p;
+		}
+	}
+	return std::make_pair(leftPoint, rightPoint);
 }
 
 std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect)

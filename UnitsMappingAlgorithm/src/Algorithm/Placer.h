@@ -18,10 +18,12 @@ private:
 	std::list<sf::Vector2f> GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const;
 	ElementType GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) const;
 	ElementType GetAreaStatusFast(const std::array<sf::Vector2f, 4u>& rect) const;
-	sf::Vector2f FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rect, const sf::Vector2f& position) const;
+	sf::Vector2f FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rect, const sf::Vector2f& position, const sf::Vector2f& lineupPosition, const sf::Vector2f& direction) const;
+	int GetConnectivity(const sf::Vector2f& pos) const;
+	void FixRotationByBlocks(UnitDrawablePtr& pUnitDrawable, const sf::Vector2f& position, const sf::Vector2f& direction) const;
 
 	void FillMap(float worldSizeX, float worldSizeY);
-	void FillDynamicMap();
+	void FillDynamicMap(const sf::Vector2f& position);
 	void SetUnitMapPosition(const std::array<sf::Vector2f, 4u>& rect);
 	void ClearUnitMapPosition();
 	void FixGunPosition(UnitDrawablePtr pUnitDrawable);
@@ -32,7 +34,9 @@ private:
 	std::list<UnitDrawablePtr> m_unitDrawables;
 	std::vector<std::vector<ElementType>> m_map;
 	std::vector<std::vector<ElementType>> m_dynamicMap;
+	std::vector<std::vector<int>> m_connectivityMap;
 	sf::Vector2f m_worldSize;
 	sf::Vector2f m_cellSize;
 	std::vector<std::pair<size_t, size_t>> m_clearMapIdxs;
+	int m_currentConnectivity;
 };
