@@ -75,6 +75,7 @@ bool ProjectPointOnLine(const sf::Vector2f& p1, const sf::Vector2f& p2, const sf
     sf::Vector2f b = point - p1;
     result = a * DotProduct(a, b);
     int s = sign(DotProduct(a, result - a));
+    result = p1 + result;
     if (s > 0)
         return false;
     return true;
@@ -162,9 +163,11 @@ bool IsIntersectsSegmentWithRay(const sf::Vector2f& s1, const sf::Vector2f& s2, 
     return sign(DotProduct(s2 - s1, result - s1)) != sign(DotProduct(s2 - s1, result - s2)) && sign(DotProduct(p2 - result, ray1)) == sign(DotProduct(p2 - result, ray2));
 }
 
-bool IsIntersectsWithRay(const sf::FloatRect& rect, const sf::Vector2f& rayPos, const sf::Vector2f& rayDir)
+bool IsIntersectsWithRay(const sf::FloatRect& rect, const sf::Vector2f& rayPos, const sf::Vector2f& rayDir, bool isIntersectIfInside /*= false*/)
 {
     auto rectPoints = GetPoints(rect);
+    if (!isIntersectIfInside && IsPointInsideRect(rectPoints, rayPos))
+        return false;
     sf::Vector2f guide(-rayDir.y, rayDir.x);
     sf::Vector2f p1 = rayPos;
     sf::Vector2f p2 = rayPos + rayDir;
@@ -222,28 +225,10 @@ std::array<sf::Vector2f, 3u> GetTriangleShadowPoints(const sf::Vector2f& lineupP
     }
     else if (pRectBlock)
     {
-        auto rectPoints = GetPoints(pRectBlock->GetDrawable());
-        auto centerVector = pRectBlock->GetPosition() - lineupPos;
-        float minAngle = 380.f, maxAngle = -380.f;
-        sf::Vector2f minPoint, maxPoint;
-        for (auto p : rectPoints)
-        {
-            auto v = p - lineupPos;
-            float angle = GetAngleBetween(centerVector, v);
-            if (angle > maxAngle)
-            {
-                maxAngle = angle;
-                maxPoint = p;
-            }
-            if (angle < minAngle)
-            {
-                minAngle = angle;
-                minPoint = p;
-            }
-        }
+        auto leftRightPoint = GetLeftAndRightPoint(pRectBlock->GetBBox(), lineupPos, lineupDir);
 
-        leftPoint = maxPoint;
-        rightPoint = minPoint;
+        leftPoint = leftRightPoint.first;
+        rightPoint = leftRightPoint.second;
     }
     else
         return std::array<sf::Vector2f, 3u>();
@@ -256,27 +241,64 @@ std::array<sf::Vector2f, 3u> GetTriangleShadowPoints(const sf::Vector2f& lineupP
 
 std::pair<sf::Vector2f, sf::Vector2f> GetLeftAndRightPoint(const sf::FloatRect & rect, const sf::Vector2f & dimPos, const sf::Vector2f & dimDir)
 {
-	sf::Vector2f origin(-dimDir.y, dimDir.x);
-	auto points = GetPoints(rect);
+    sf::Vector2f guide(-dimDir.y, dimDir.x);
+    auto rectPoints = GetPoints(rect);
+    std::array<std::pair<sf::Vector2f, sf::Vector2f>, 4u> projPoints;
+    for (size_t idx = 0; idx < rectPoints.size(); ++idx)
+    {
+        sf::Vector2f projPoint;
+        ProjectPointOnLine(dimPos, dimPos + guide, rectPoints[idx], projPoint);
+        projPoints[idx] = std::make_pair(rectPoints[idx], projPoint);
+    }
+    auto base = dimPos + guide;
+    auto getExtremePoints = [&projPoints](const sf::Vector2f& base, bool isLeft)
+    {
+        std::vector<std::pair<sf::Vector2f, sf::Vector2f>> result;
+        int sideSign = isLeft ? 1 : -1;
+        for (const auto& p1 : projPoints)
+        {
+            bool isExtreme = true;
+            for (const auto& p2 : projPoints)
+            {
+                if (p1 == p2)
+                    continue;
 
-	sf::Vector2f leftPoint = points[0], rightPoint = points[0];
-	float minAngle = 366.f, maxAngle = 0.f;
-	for (size_t idx = 1u; idx < points.size(); ++idx)
-	{
-		auto p = points[idx];
-		float angle = std::abs(GetAngleBetween(origin, p - dimPos));
-		if (angle < minAngle)
-		{
-			minAngle = angle;
-			rightPoint = p;
-		}
-		if (angle > maxAngle)
-		{
-			maxAngle = angle;
-			leftPoint = p;
-		}
-	}
-	return std::make_pair(leftPoint, rightPoint);
+                int resultSign = sign(DotProduct(p2.second - p1.second, base));
+                if (resultSign == 0)
+                    continue;
+                if (resultSign != sideSign)
+                {
+                    isExtreme = false;
+                    break;
+                }
+            }
+            if (isExtreme)
+                result.push_back(p1);
+        }
+
+        return result;
+    };
+
+    auto getClosestPoint = [&dimPos](std::vector<std::pair<sf::Vector2f, sf::Vector2f>> pointsPairs)
+    {
+        float minDist = 10000.f;
+        sf::Vector2f result;
+        for (auto [p, dummy] : pointsPairs)
+        {
+            float dist = GetAbs(p - dimPos);
+            if (minDist > dist)
+            {
+                minDist = dist;
+                result = p;
+            }
+        }
+        return result;
+    };
+
+    auto leftPoint = getClosestPoint(getExtremePoints(base, true));
+    auto rightPoint = getClosestPoint(getExtremePoints(base, false));
+
+    return { leftPoint, rightPoint };
 }
 
 std::array<sf::Vector2f, 4u> GetPoints(const RectPtr& pRect)

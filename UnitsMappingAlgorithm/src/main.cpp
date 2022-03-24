@@ -63,7 +63,7 @@ int main(int argc, char ** argv)
 {
 	sf::RenderWindow window(sf::VideoMode(900u, 600u), "Units mapping");
 	window.setVerticalSyncEnabled(true);
-	size_t unitCount = 11u;
+	size_t unitCount = 15u;
 	auto fpsCounter = CreateText("0");
 
 	std::list<DrawablePtr> drawables;
@@ -146,7 +146,13 @@ int main(int argc, char ** argv)
 			{
 				if (event.mouseButton.button == sf::Mouse::Button::Left)
 				{
-					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f });
+					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f }, false);
+					drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
+				}
+
+				if (event.mouseButton.button == sf::Mouse::Button::Right)
+				{
+					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 20.f, 20.f }, true);
 					drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
 				}
 				//if (event.mouseButton.button == sf::Mouse::Button::Right)

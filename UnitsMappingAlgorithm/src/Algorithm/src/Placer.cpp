@@ -4,6 +4,8 @@
 
 using namespace sf;
 
+std::vector<sf::Vector2f> poss;
+
 Placer::Placer(float worldSizeX, float worldSizeY, std::list<BlockPtr> blocks, std::list<UnitDrawablePtr> unitDrawables) :
 	m_blocks(blocks), m_unitDrawables(unitDrawables), m_worldSize(worldSizeX, worldSizeY)
 {
@@ -15,7 +17,7 @@ void Placer::FillMap(float worldSizeX, float worldSizeY)
 	if (m_unitDrawables.empty())
 		return;
 
-	m_cellSize = m_unitDrawables.front()->body->getSize()/4.f;
+	m_cellSize = m_unitDrawables.front()->body->getSize()/5.f;
 	size_t squareCountX = worldSizeX / m_cellSize.x;
 	size_t squareCountY = worldSizeY / m_cellSize.y;
 	m_map.resize(squareCountY, std::vector<ElementType>(squareCountX, ElementType::FREE));
@@ -45,7 +47,7 @@ void Placer::FillDynamicMap(const sf::Vector2f& position)
 		for (size_t xIdx = 0u; xIdx < m_map[yIdx].size(); ++xIdx)
 		{
 			int cellConnectivity = m_connectivityMap[yIdx][xIdx];
-			if(cellConnectivity > 0 && cellConnectivity != connectivity)
+			if(cellConnectivity >= 0 && cellConnectivity != connectivity)
 				dynamicLine.push_back(ElementType::BLOCK_LOW);
 			else
 				dynamicLine.push_back(ElementType(m_map[yIdx][xIdx]));
@@ -98,7 +100,9 @@ void Placer::SetUnitMapPosition(const std::array<sf::Vector2f, 4u>& rect)
 			};
 
 			if (IsIntersects(rect, field))
+			{
 				m_dynamicMap[ydx][xdx] = ElementType::UNIT;
+			}
 		}
 	}
 }
@@ -422,7 +426,25 @@ ElementType Placer::GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) cons
 			};
 
 			if (IsIntersects(rect, field))
+			{
+				if (m_dynamicMap[ydx][xdx] == ElementType::UNIT)
+				{
+					auto pUnit = std::find_if(m_unitDrawables.begin(), m_unitDrawables.end(), [&field, this](const UnitDrawablePtr& pUnit)
+					{
+						return IsIntersects(field, GetPoints(pUnit->body));
+					});
+
+					if (pUnit != m_unitDrawables.end())
+					{
+						if (IsIntersects(rect, GetPoints((*pUnit)->body)))
+							return ElementType::UNIT;
+						else
+							continue;
+					}
+				}
+
 				return m_dynamicMap[ydx][xdx];
+			}
 		}
 	}
 
@@ -464,16 +486,6 @@ ElementType Placer::GetAreaStatusFast(const std::array<sf::Vector2f, 4u>& rect) 
 				break;
 			if (m_dynamicMap[ydx][xdx] == ElementType::FREE)
 				continue;
-
-			std::array<sf::Vector2f, 4u> field =
-			{
-				sf::Vector2f(m_cellSize.x * xdx, m_cellSize.y * ydx),
-				sf::Vector2f(m_cellSize.x * xdx, m_cellSize.y * (ydx + 1u)),
-				sf::Vector2f(m_cellSize.x * (xdx + 1u), m_cellSize.y * (ydx + 1u)),
-				sf::Vector2f(m_cellSize.x * (xdx + 1u), m_cellSize.y * ydx)
-
-			};
-
 			
 			return m_dynamicMap[ydx][xdx];
 		}
@@ -486,13 +498,22 @@ sf::Vector2f Placer::FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rec
 {
 	sf::Vector2f origin(-direction.y, direction.x);
 	size_t shiftAbs = 1;
+
+	/*auto insideArea = [this](const sf::Vector2f& p) { return p.x >= 0.f && p.y >= 0.f && p.x <= m_worldSize.x && p.y <= m_worldSize.y; };
+	auto pointsInsideArea = [&insideArea](const std::array<sf::Vector2f, 4u>& points) 
+	{
+		for (const auto& p : points)
+			if (!insideArea(p))
+				return false;
+		return true;
+	};*/
 	
 	auto points = rect;
-	while (GetAreaStatus(points) != ElementType::FREE && shiftAbs <= 10)
+	while (GetAreaStatus(points) != ElementType::FREE && shiftAbs <= 20 /*&& pointsInsideArea(points)*/)
 	{
 		//for (float angle = 0.f; angle < 360.f && GetAreaStatusFast(points) != ElementType::FREE; angle += 15.f)
 		float sign = 1.f;
-		for (size_t idx = 0u; idx < 2u; ++idx, sign *= -1.f)
+		for (size_t idx = 0u; idx < 2u && GetAreaStatus(points) != ElementType::FREE; ++idx, sign *= -1.f)
 		{
 			points = rect;
 			/*sf::Transform t;
@@ -507,10 +528,15 @@ sf::Vector2f Placer::FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rec
 			}
 		}
 		shiftAbs++;
+		/*if (std::find(poss.begin(), poss.end(), (position - (rect[0] - points[0]))) != poss.end())
+		{
+			std::cout << "Hellow mthfkr";
+		}*/
 	}
 
-	if (shiftAbs == 10)
+	if (shiftAbs >= 20)
 	{
+		shiftAbs = 1;
 		while (GetAreaStatus(points) != ElementType::FREE)
 		{
 			for (float angle = 0.f; angle < 360.f && GetAreaStatusFast(points) != ElementType::FREE; angle += 15.f)
@@ -564,7 +590,7 @@ void Placer::FixRotationByBlocks(UnitDrawablePtr& pUnitDrawable, const sf::Vecto
 	}
 }
 
-void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding)
+void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding, bool dummy)
 {
 	std::list<Vector2f> lineupTranslations;
 	if(lineUpName == "line")
@@ -574,6 +600,16 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 	if(lineUpName == "square")
 		lineupTranslations = GetSquareLineup(count, boundary, padding);
 
+	auto scalePointsByPadding = [](std::array<sf::Vector2f, 4u>& points, const sf::Vector2f& center, const sf::Vector2f& originalSize, const sf::Vector2f& padding)
+	{
+		sf::Transform scaleT;
+		scaleT.scale({ (originalSize.x + padding.x) / originalSize.x, (originalSize.y + padding.y) / originalSize.y }, center);
+		for (auto& p : points)
+		{
+			p = scaleT.transformPoint(p);
+		}
+	};
+
 	Vector2f Oy = { 0.f, -1.f };
 	float angle = GetAngleBetween(Oy, direction);
 
@@ -581,20 +617,26 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 
 	CheckHoles();
 	FillDynamicMap(position);
-	MakeHighShadows(position, direction);
 
 	auto unitDrawableIt = m_unitDrawables.begin();
 	//for (auto lineupTranslation : lineupTranslations)
 	auto forwardIt = lineupTranslations.begin();
-	auto backIt = --lineupTranslations.end();
+	auto backIt = lineupTranslations.begin();
+	size_t centerIdx = lineupTranslations.size() / 2u;
+	//size_t tmpIdx = centerIdx - 1;
+	std::advance(forwardIt, centerIdx - 1);
+	std::advance(backIt, centerIdx);
 	for(size_t idx = 0u; idx < lineupTranslations.size(); ++idx)
 	{
-		auto lineupTranslation = *(idx % 2 == 0 ? forwardIt++ : backIt--);
+		auto lineupTranslation = *(idx % 2 == 0 ? ++forwardIt : --backIt);
 		if (unitDrawableIt == m_unitDrawables.end())
 			break;
 		auto pUnitDrawable = *unitDrawableIt;
 
 		auto unitPosition = position + lineupTranslation;
+
+		MakeHighShadows(unitPosition, direction);
+
 		Transform t;
 		t.rotate(angle, position);
 		unitPosition = t.transformPoint(unitPosition);
@@ -603,6 +645,7 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		pUnitDrawable->SetGunRotation(angle);
 
 		auto points = GetPoints(pUnitDrawable->body);
+		scalePointsByPadding(points, unitPosition, boundary, padding);
 		if (GetAreaStatus(points) != ElementType::FREE)
 		{
 			unitPosition = FindClosestFreeArea(points, unitPosition, position, direction);
@@ -611,19 +654,44 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 
 		FixRotationByBlocks(pUnitDrawable, unitPosition, direction);
 		points = GetPoints(pUnitDrawable->body);
-		sf::Transform scaleT;
+		scalePointsByPadding(points, unitPosition, boundary, padding);
+		/*sf::Transform scaleT;
 		scaleT.scale({ 0.75f, 0.75f }, pUnitDrawable->body->getPosition());
 		for (auto& p : points)
 		{
 			p = scaleT.transformPoint(p);
-		}
+		}*/
 		SetUnitMapPosition(points);
 
 		++unitDrawableIt;
+
+		if (dummy)
+			ConsoleMap();
+		poss.push_back(unitPosition);
+	}
+	for (size_t idx = 0; idx < poss.size(); ++idx)
+	{
+		for (size_t jdx = idx; jdx < poss.size(); ++jdx)
+		{
+			if (poss[idx].x > poss[jdx].x)
+				std::swap(poss[idx], poss[jdx]);
+		}
 	}
 
-	//ConsoleMap();
-	//CheckHoles();
+	for (const auto& pUnit1 : m_unitDrawables)
+	{
+		for (const auto& pUnit2 : m_unitDrawables)
+		{
+			if (pUnit1 == pUnit2)
+				continue;
+			if (GetAbs(pUnit1->body->getPosition() - pUnit2->body->getPosition()) < boundary.x + padding.x)
+			{
+				std::cout << "ERRRRRRRRRRRRRRRRRROR!!!!" << std::endl;
+			}
+		}
+	}
+
+	poss.clear();
 }
 
 void Placer::ConsoleMap() const
@@ -632,7 +700,7 @@ void Placer::ConsoleMap() const
 	{
 		for (auto x : y)
 		{
-			std::cout << (x == ElementType::FREE ? " " : "1") << " ";
+			std::cout << (x == ElementType::FREE ? " " : (x == ElementType::UNIT ? "U" : "1")) << " ";
 		}
 		std::cout << std::endl;
 	}

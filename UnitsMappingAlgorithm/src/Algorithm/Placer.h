@@ -7,7 +7,7 @@ class Placer
 {
 public:
 	Placer(float worldSizeX, float worldSizeY, std::list<BlockPtr> blocks, std::list<UnitDrawablePtr> unitDrawables);
-	void PlaceUnits(const std::string& lineUpName, size_t count, sf::Vector2f position, sf::Vector2f direction, sf::Vector2f boundary, sf::Vector2f padding);
+	void PlaceUnits(const std::string& lineUpName, size_t count, sf::Vector2f position, sf::Vector2f direction, sf::Vector2f boundary, sf::Vector2f padding, bool dummy);
 	void ConsoleMap() const;
 	void AddBlock(BlockPtr pBlock);
 	void SetUnitDrawables(std::list<UnitDrawablePtr> unitDrawables);
