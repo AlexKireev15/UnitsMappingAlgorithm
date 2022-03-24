@@ -15,7 +15,7 @@ public:
 private:
 	std::list<sf::Vector2f> GetLineLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const;
 	std::list<sf::Vector2f> GetWedgeLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const;
-	std::list<sf::Vector2f> GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const;
+	std::list<sf::Vector2f> GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding, const float& angle) const;
 	ElementType GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) const;
 	ElementType GetAreaStatusFast(const std::array<sf::Vector2f, 4u>& rect) const;
 	sf::Vector2f FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rect, const sf::Vector2f& position, const sf::Vector2f& lineupPosition, const sf::Vector2f& direction) const;

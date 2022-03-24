@@ -146,7 +146,7 @@ int main(int argc, char ** argv)
 			{
 				if (event.mouseButton.button == sf::Mouse::Button::Left)
 				{
-					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 5.f, 5.f }, false);
+					placer.PlaceUnits(currentLineup, unitCount, mousePosition, dir, unitsDrawables.front()->body->getSize(), { 20.f, 20.f }, false);
 					drawables.insert(drawables.end(), unitsDrawables.begin(), unitsDrawables.end());
 				}
 

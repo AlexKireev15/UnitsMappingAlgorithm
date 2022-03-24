@@ -358,19 +358,19 @@ std::list<sf::Vector2f> Placer::GetWedgeLineup(size_t count, sf::Vector2f bounda
 	return result;
 }
 
-std::list<sf::Vector2f> Placer::GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding) const
+std::list<sf::Vector2f> Placer::GetSquareLineup(size_t count, sf::Vector2f boundary, sf::Vector2f padding, const float& angle) const
 {
 	std::list<Vector2f> result;
 
 	size_t sizeX = (size_t)(sqrt(count) + 1);
 	size_t sizeY = count / sizeX + 1;
-	float spacing = padding.x;
+	float spacing = padding.x + m_cellSize.x * (1.f + abs(cos(angle * M_PI / 180.f)));
 	float totalSpace = boundary.x * sizeX + (sizeX > 0 ? (spacing * (sizeX - 1)) : 0);
 
 	size_t totalPlaced = 0;
 	for (size_t idx = 0; idx < sizeY && totalPlaced < count; ++idx)
 	{
-		float currentY = (idx - sizeY / 2.f + 0.5f) * (boundary.y + padding.y);
+		float currentY = (idx - sizeY / 2.f + 0.5f) * (boundary.y + padding.y + m_cellSize.y * (1.f + abs(sin(angle * M_PI / 180.f))));
 		for (size_t jdx = 0; jdx < sizeX && totalPlaced < count; ++jdx, ++totalPlaced)
 		{
 			result.push_back({ boundary.x / 2.f + (boundary.x + spacing) * jdx - totalSpace / 2.f,  currentY });
@@ -427,7 +427,7 @@ ElementType Placer::GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) cons
 
 			if (IsIntersects(rect, field))
 			{
-				if (m_dynamicMap[ydx][xdx] == ElementType::UNIT)
+				/*if (m_dynamicMap[ydx][xdx] == ElementType::UNIT)
 				{
 					auto pUnit = std::find_if(m_unitDrawables.begin(), m_unitDrawables.end(), [&field, this](const UnitDrawablePtr& pUnit)
 					{
@@ -441,7 +441,8 @@ ElementType Placer::GetAreaStatus(const std::array<sf::Vector2f, 4u>& rect) cons
 						else
 							continue;
 					}
-				}
+					continue;
+				}*/
 
 				return m_dynamicMap[ydx][xdx];
 			}
@@ -539,7 +540,7 @@ sf::Vector2f Placer::FindClosestFreeArea(const std::array<sf::Vector2f, 4u>& rec
 		shiftAbs = 1;
 		while (GetAreaStatus(points) != ElementType::FREE)
 		{
-			for (float angle = 0.f; angle < 360.f && GetAreaStatusFast(points) != ElementType::FREE; angle += 15.f)
+			for (float angle = 0.f; angle < 360.f && GetAreaStatus(points) != ElementType::FREE; angle += 15.f)
 			{
 				points = rect;
 				sf::Transform t;
@@ -592,13 +593,16 @@ void Placer::FixRotationByBlocks(UnitDrawablePtr& pUnitDrawable, const sf::Vecto
 
 void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f position, Vector2f direction, Vector2f boundary, Vector2f padding, bool dummy)
 {
+	Vector2f Oy = { 0.f, -1.f };
+	float angle = GetAngleBetween(Oy, direction);
+
 	std::list<Vector2f> lineupTranslations;
 	if(lineUpName == "line")
 		lineupTranslations = GetLineLineup(count, boundary, padding);
 	if(lineUpName == "wedge")
 		lineupTranslations = GetWedgeLineup(count, boundary, padding);
 	if(lineUpName == "square")
-		lineupTranslations = GetSquareLineup(count, boundary, padding);
+		lineupTranslations = GetSquareLineup(count, boundary, padding, angle);
 
 	auto scalePointsByPadding = [](std::array<sf::Vector2f, 4u>& points, const sf::Vector2f& center, const sf::Vector2f& originalSize, const sf::Vector2f& padding)
 	{
@@ -610,20 +614,20 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		}
 	};
 
-	Vector2f Oy = { 0.f, -1.f };
-	float angle = GetAngleBetween(Oy, direction);
-
 	ClearUnitMapPosition();
 
 	CheckHoles();
 	FillDynamicMap(position);
 
+	for (const auto& lineupTranslation : lineupTranslations)
+	{
+		MakeHighShadows(position + lineupTranslation, direction);
+	}
+
 	auto unitDrawableIt = m_unitDrawables.begin();
-	//for (auto lineupTranslation : lineupTranslations)
 	auto forwardIt = lineupTranslations.begin();
 	auto backIt = lineupTranslations.begin();
 	size_t centerIdx = lineupTranslations.size() / 2u;
-	//size_t tmpIdx = centerIdx - 1;
 	std::advance(forwardIt, centerIdx - 1);
 	std::advance(backIt, centerIdx);
 	for(size_t idx = 0u; idx < lineupTranslations.size(); ++idx)
@@ -634,8 +638,6 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		auto pUnitDrawable = *unitDrawableIt;
 
 		auto unitPosition = position + lineupTranslation;
-
-		MakeHighShadows(unitPosition, direction);
 
 		Transform t;
 		t.rotate(angle, position);
@@ -655,12 +657,7 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		FixRotationByBlocks(pUnitDrawable, unitPosition, direction);
 		points = GetPoints(pUnitDrawable->body);
 		scalePointsByPadding(points, unitPosition, boundary, padding);
-		/*sf::Transform scaleT;
-		scaleT.scale({ 0.75f, 0.75f }, pUnitDrawable->body->getPosition());
-		for (auto& p : points)
-		{
-			p = scaleT.transformPoint(p);
-		}*/
+
 		SetUnitMapPosition(points);
 
 		++unitDrawableIt;
@@ -684,7 +681,8 @@ void Placer::PlaceUnits(const std::string& lineUpName, size_t count, Vector2f po
 		{
 			if (pUnit1 == pUnit2)
 				continue;
-			if (GetAbs(pUnit1->body->getPosition() - pUnit2->body->getPosition()) < boundary.x + padding.x)
+			float dist = GetAbs(pUnit1->body->getPosition() - pUnit2->body->getPosition());
+			if (dist + 1.e-1 < boundary.x + padding.x)
 			{
 				std::cout << "ERRRRRRRRRRRRRRRRRROR!!!!" << std::endl;
 			}
