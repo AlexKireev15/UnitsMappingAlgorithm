@@ -4,17 +4,17 @@
     <Filter Include="src">
       <UniqueIdentifier>{87408626-9498-4412-8de7-389d8b93a204}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\Visual">
-      <UniqueIdentifier>{3b492d62-e81b-4b34-bdbe-ba574c2b44bc}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\Algorithm">
       <UniqueIdentifier>{3af4e73e-3fbe-4e97-adb2-b54579657268}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\Visual\src">
-      <UniqueIdentifier>3</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\Algorithm\src">
       <UniqueIdentifier>{fd8598b5-8ed8-4b82-82f4-629eafd386c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Visual">
+      <UniqueIdentifier>{1b4ae6c7-3e21-48ed-8b98-538cf8f61500}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Visual\src">
+      <UniqueIdentifier>{ffdad8ef-c9fa-41a8-80c8-8bd2db101215}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -30,6 +30,9 @@
     <ClCompile Include="src\Algorithm\src\Block.cpp">
       <Filter>src\Algorithm\src</Filter>
     </ClCompile>
+    <ClCompile Include="src\Visual\src\Visual.cpp">
+      <Filter>src\Visual\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Common.h">
@@ -43,6 +46,9 @@
     </ClInclude>
     <ClInclude Include="src\Algorithm\Placer.h">
       <Filter>src\Algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Visual\Visual.h">
+      <Filter>src\Visual</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
